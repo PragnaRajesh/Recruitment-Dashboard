@@ -160,7 +160,9 @@ export default function DashboardPage() {
       const performanceData = await dataService.fetchPerformanceData();
       setRecruiters(recruitersData);
       setPerformanceDataState(performanceData);
-      setHasData(dataService.hasImportedData());
+      const dataImported = dataService.hasImportedData();
+      setHasData(dataImported);
+      setHasImportedData(dataImported);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
