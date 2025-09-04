@@ -92,7 +92,7 @@ class DataService {
 
     try {
       const { spreadsheetId, apiKey, ranges } = sheetsConfig;
-      
+
       // Fetch data from Google Sheets API
       const responses = await Promise.all([
         this.fetchSheetRange(spreadsheetId, ranges.recruiters, apiKey),
@@ -120,23 +120,27 @@ class DataService {
     }
   }
 
-  private async fetchSheetRange(spreadsheetId: string, range: string, apiKey: string) {
+  private async fetchSheetRange(
+    spreadsheetId: string,
+    range: string,
+    apiKey: string,
+  ) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?key=${apiKey}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch sheet data: ${response.statusText}`);
     }
-    
+
     return await response.json();
   }
 
   private parseRecruitersData(response: any): RecruiterData[] {
     if (!response.values || response.values.length < 2) return [];
-    
+
     const headers = response.values[0];
     const rows = response.values.slice(1);
-    
+
     return rows.map((row: any[], index: number) => ({
       id: index + 1,
       name: row[0] || "",
@@ -154,9 +158,9 @@ class DataService {
 
   private parseCandidatesData(response: any): CandidateData[] {
     if (!response.values || response.values.length < 2) return [];
-    
+
     const rows = response.values.slice(1);
-    
+
     return rows.map((row: any[], index: number) => ({
       id: index + 1,
       name: row[0] || "",
@@ -165,7 +169,8 @@ class DataService {
       position: row[3] || "",
       experience: row[4] || "",
       skills: row[5] ? row[5].split(",").map((s: string) => s.trim()) : [],
-      status: (row[6] as "hired" | "interview" | "pending" | "rejected") || "pending",
+      status:
+        (row[6] as "hired" | "interview" | "pending" | "rejected") || "pending",
       salary: parseInt(row[7]) || 0,
       recruiter: row[8] || "",
       client: row[9] || "",
@@ -176,9 +181,9 @@ class DataService {
 
   private parseClientsData(response: any): ClientData[] {
     if (!response.values || response.values.length < 2) return [];
-    
+
     const rows = response.values.slice(1);
-    
+
     return rows.map((row: any[], index: number) => ({
       id: index + 1,
       name: row[0] || "",
@@ -196,9 +201,9 @@ class DataService {
 
   private parsePerformanceData(response: any): PerformanceData[] {
     if (!response.values || response.values.length < 2) return [];
-    
+
     const rows = response.values.slice(1);
-    
+
     return rows.map((row: any[]) => ({
       month: row[0] || "",
       recruiters: parseInt(row[1]) || 0,
@@ -229,10 +234,12 @@ class DataService {
 
   // Check if data has been imported
   hasImportedData(): boolean {
-    return importedRecruiters.length > 0 || 
-           importedCandidates.length > 0 || 
-           importedClients.length > 0 || 
-           importedPerformanceData.length > 0;
+    return (
+      importedRecruiters.length > 0 ||
+      importedCandidates.length > 0 ||
+      importedClients.length > 0 ||
+      importedPerformanceData.length > 0
+    );
   }
 
   // Clear all imported data

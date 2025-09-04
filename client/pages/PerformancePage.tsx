@@ -73,10 +73,9 @@ export default function PerformancePage() {
       )
       .join("\n");
 
-    const blob = new Blob(
-      [`Month,Hired,Target,Recruiters\n${csvData}`],
-      { type: "text/csv" },
-    );
+    const blob = new Blob([`Month,Hired,Target,Recruiters\n${csvData}`], {
+      type: "text/csv",
+    });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -90,10 +89,15 @@ export default function PerformancePage() {
     (sum, item) => sum + item.target,
     0,
   );
-  const overallAchievement = totalTarget > 0 ? Math.round((totalHired / totalTarget) * 100) : 0;
-  const avgRecruiters = performanceData.length > 0 
-    ? Math.round(performanceData.reduce((sum, item) => sum + item.recruiters, 0) / performanceData.length)
-    : 0;
+  const overallAchievement =
+    totalTarget > 0 ? Math.round((totalHired / totalTarget) * 100) : 0;
+  const avgRecruiters =
+    performanceData.length > 0
+      ? Math.round(
+          performanceData.reduce((sum, item) => sum + item.recruiters, 0) /
+            performanceData.length,
+        )
+      : 0;
 
   // Sample department performance (would be calculated from actual data)
   const departmentPerformance = [
@@ -133,9 +137,12 @@ export default function PerformancePage() {
         <Card className="bg-slate-800/50 border-slate-700/50">
           <CardContent className="p-12 text-center">
             <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No Performance Data</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              No Performance Data
+            </h3>
             <p className="text-slate-400 mb-6">
-              Please import data from Google Sheets on the Dashboard to view performance analytics.
+              Please import data from Google Sheets on the Dashboard to view
+              performance analytics.
             </p>
           </CardContent>
         </Card>
@@ -232,10 +239,10 @@ export default function PerformancePage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-200 text-sm font-medium">Avg Recruiters</p>
-                <p className="text-2xl font-bold text-white">
-                  {avgRecruiters}
+                <p className="text-purple-200 text-sm font-medium">
+                  Avg Recruiters
                 </p>
+                <p className="text-2xl font-bold text-white">{avgRecruiters}</p>
                 <div className="flex items-center mt-1">
                   <TrendingUp className="w-3 h-3 text-purple-400 mr-1" />
                   <span className="text-purple-400 text-xs">Team Size</span>
@@ -252,7 +259,9 @@ export default function PerformancePage() {
               <div>
                 <p className="text-yellow-200 text-sm font-medium">Avg/Month</p>
                 <p className="text-2xl font-bold text-white">
-                  {performanceData.length > 0 ? Math.round(totalHired / performanceData.length) : 0}
+                  {performanceData.length > 0
+                    ? Math.round(totalHired / performanceData.length)
+                    : 0}
                 </p>
                 <div className="flex items-center mt-1">
                   <TrendingUp className="w-3 h-3 text-yellow-400 mr-1" />
@@ -311,14 +320,22 @@ export default function PerformancePage() {
         {/* Recruiters Trend Chart */}
         <Card className="bg-slate-800/50 border-slate-700/50">
           <CardHeader>
-            <CardTitle className="text-white">Recruiters & Hiring Trend</CardTitle>
+            <CardTitle className="text-white">
+              Recruiters & Hiring Trend
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {performanceData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={performanceData}>
                   <defs>
-                    <linearGradient id="colorRecruiters" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="colorRecruiters"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                     </linearGradient>

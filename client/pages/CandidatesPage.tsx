@@ -224,10 +224,12 @@ export default function CandidatesPage() {
     (c) => c.status === "pending",
   ).length;
   const avgSalary =
-    filteredData.length > 0 && filteredData.some(c => c.salary > 0)
+    filteredData.length > 0 && filteredData.some((c) => c.salary > 0)
       ? Math.round(
-          filteredData.filter(c => c.salary > 0).reduce((sum, c) => sum + c.salary, 0) /
-            filteredData.filter(c => c.salary > 0).length,
+          filteredData
+            .filter((c) => c.salary > 0)
+            .reduce((sum, c) => sum + c.salary, 0) /
+            filteredData.filter((c) => c.salary > 0).length,
         )
       : 0;
 
@@ -249,9 +251,12 @@ export default function CandidatesPage() {
         <Card className="bg-slate-800/50 border-slate-700/50">
           <CardContent className="p-12 text-center">
             <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No Candidate Data</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              No Candidate Data
+            </h3>
             <p className="text-slate-400 mb-6">
-              Please import data from Google Sheets on the Dashboard to view candidates.
+              Please import data from Google Sheets on the Dashboard to view
+              candidates.
             </p>
           </CardContent>
         </Card>

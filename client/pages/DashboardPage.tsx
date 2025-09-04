@@ -48,11 +48,21 @@ import {
 import { useGlobalContext } from "@/context/GlobalContext";
 
 // Google Sheets Import Dialog Component
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const ImportDialog = ({ onImport }: { onImport: (config: GoogleSheetsConfig) => void }) => {
+const ImportDialog = ({
+  onImport,
+}: {
+  onImport: (config: GoogleSheetsConfig) => void;
+}) => {
   const [config, setConfig] = useState<GoogleSheetsConfig>({
     spreadsheetId: "",
     apiKey: "",
@@ -80,21 +90,29 @@ const ImportDialog = ({ onImport }: { onImport: (config: GoogleSheetsConfig) => 
       </DialogTrigger>
       <DialogContent className="bg-slate-800 border-slate-700">
         <DialogHeader>
-          <DialogTitle className="text-white">Import from Google Sheets</DialogTitle>
+          <DialogTitle className="text-white">
+            Import from Google Sheets
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="spreadsheetId" className="text-slate-300">Spreadsheet ID</Label>
+            <Label htmlFor="spreadsheetId" className="text-slate-300">
+              Spreadsheet ID
+            </Label>
             <Input
               id="spreadsheetId"
               value={config.spreadsheetId}
-              onChange={(e) => setConfig({ ...config, spreadsheetId: e.target.value })}
+              onChange={(e) =>
+                setConfig({ ...config, spreadsheetId: e.target.value })
+              }
               placeholder="Enter Google Sheets ID"
               className="bg-slate-700 border-slate-600 text-white"
             />
           </div>
           <div>
-            <Label htmlFor="apiKey" className="text-slate-300">API Key</Label>
+            <Label htmlFor="apiKey" className="text-slate-300">
+              API Key
+            </Label>
             <Input
               id="apiKey"
               value={config.apiKey}
@@ -106,31 +124,42 @@ const ImportDialog = ({ onImport }: { onImport: (config: GoogleSheetsConfig) => 
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="recruitersRange" className="text-slate-300">Recruiters Range</Label>
+              <Label htmlFor="recruitersRange" className="text-slate-300">
+                Recruiters Range
+              </Label>
               <Input
                 id="recruitersRange"
                 value={config.ranges.recruiters}
-                onChange={(e) => setConfig({ 
-                  ...config, 
-                  ranges: { ...config.ranges, recruiters: e.target.value }
-                })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    ranges: { ...config.ranges, recruiters: e.target.value },
+                  })
+                }
                 className="bg-slate-700 border-slate-600 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="candidatesRange" className="text-slate-300">Candidates Range</Label>
+              <Label htmlFor="candidatesRange" className="text-slate-300">
+                Candidates Range
+              </Label>
               <Input
                 id="candidatesRange"
                 value={config.ranges.candidates}
-                onChange={(e) => setConfig({ 
-                  ...config, 
-                  ranges: { ...config.ranges, candidates: e.target.value }
-                })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    ranges: { ...config.ranges, candidates: e.target.value },
+                  })
+                }
                 className="bg-slate-700 border-slate-600 text-white"
               />
             </div>
           </div>
-          <Button onClick={handleImport} className="w-full bg-emerald-600 hover:bg-emerald-700">
+          <Button
+            onClick={handleImport}
+            className="w-full bg-emerald-600 hover:bg-emerald-700"
+          >
             Import Data
           </Button>
         </div>
@@ -140,12 +169,19 @@ const ImportDialog = ({ onImport }: { onImport: (config: GoogleSheetsConfig) => 
 };
 
 export default function DashboardPage() {
-  const { selectedRecruiter, setSelectedRecruiter, hasImportedData, setHasImportedData } = useGlobalContext();
+  const {
+    selectedRecruiter,
+    setSelectedRecruiter,
+    hasImportedData,
+    setHasImportedData,
+  } = useGlobalContext();
   const [timeRange, setTimeRange] = useState("30d");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [recruiters, setRecruiters] = useState<RecruiterData[]>([]);
-  const [performanceDataState, setPerformanceDataState] = useState<PerformanceData[]>([]);
+  const [performanceDataState, setPerformanceDataState] = useState<
+    PerformanceData[]
+  >([]);
   const [hasData, setHasData] = useState(false);
 
   // Load data on component mount
@@ -193,13 +229,15 @@ export default function DashboardPage() {
     }
 
     const csvData = performanceDataState
-      .map((item) => `${item.month},${item.recruiters},${item.hired},${item.target}`)
+      .map(
+        (item) =>
+          `${item.month},${item.recruiters},${item.hired},${item.target}`,
+      )
       .join("\n");
 
-    const blob = new Blob(
-      [`Month,Recruiters,Hired,Target\n${csvData}`],
-      { type: "text/csv" },
-    );
+    const blob = new Blob([`Month,Recruiters,Hired,Target\n${csvData}`], {
+      type: "text/csv",
+    });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -219,12 +257,14 @@ export default function DashboardPage() {
     (sum, item) => sum + item.target,
     0,
   );
-  const achievement = totalTarget > 0 ? Math.round((totalHired / totalTarget) * 100) : 0;
+  const achievement =
+    totalTarget > 0 ? Math.round((totalHired / totalTarget) * 100) : 0;
 
   // Filter data by selected recruiter
-  const filteredRecruiters = selectedRecruiter === "all" 
-    ? recruiters 
-    : recruiters.filter((r) => r.name === selectedRecruiter);
+  const filteredRecruiters =
+    selectedRecruiter === "all"
+      ? recruiters
+      : recruiters.filter((r) => r.name === selectedRecruiter);
 
   // Get top performers
   const topPerformers = [...recruiters]
@@ -277,9 +317,12 @@ export default function DashboardPage() {
         <Card className="bg-slate-800/50 border-slate-700/50">
           <CardContent className="p-12 text-center">
             <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No Data Available</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              No Data Available
+            </h3>
             <p className="text-slate-400 mb-6">
-              Connect your Google Sheets to import recruitment data and start tracking performance.
+              Connect your Google Sheets to import recruitment data and start
+              tracking performance.
             </p>
             <ImportDialog onImport={handleImport} />
           </CardContent>
@@ -408,9 +451,7 @@ export default function DashboardPage() {
                 <p className="text-purple-200 text-sm font-medium">
                   Achievement
                 </p>
-                <p className="text-3xl font-bold text-white">
-                  {achievement}%
-                </p>
+                <p className="text-3xl font-bold text-white">{achievement}%</p>
                 <div className="flex items-center mt-2">
                   <TrendingUp className="w-4 h-4 text-purple-400 mr-1" />
                   <span className="text-purple-400 text-sm font-medium">
@@ -429,15 +470,15 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-200 text-sm font-medium">Monthly Avg</p>
+                <p className="text-orange-200 text-sm font-medium">
+                  Monthly Avg
+                </p>
                 <p className="text-3xl font-bold text-white">
-                  {performanceDataState.length > 0 
+                  {performanceDataState.length > 0
                     ? Math.round(totalHired / performanceDataState.length)
                     : 0}
                 </p>
-                <p className="text-orange-200 text-xs">
-                  Average per month
-                </p>
+                <p className="text-orange-200 text-xs">Average per month</p>
                 <div className="flex items-center mt-2">
                   <TrendingUp className="w-4 h-4 text-orange-400 mr-1" />
                   <span className="text-orange-400 text-sm font-medium">
@@ -582,7 +623,9 @@ export default function DashboardPage() {
                         {index + 1}
                       </div>
                       <div>
-                        <p className="text-white font-medium">{performer.name}</p>
+                        <p className="text-white font-medium">
+                          {performer.name}
+                        </p>
                         <p className="text-slate-400 text-sm">
                           {performer.hired} hired • {performer.location}
                         </p>

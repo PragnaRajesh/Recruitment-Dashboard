@@ -197,9 +197,12 @@ export default function RecruitersPage() {
         <Card className="bg-slate-800/50 border-slate-700/50">
           <CardContent className="p-12 text-center">
             <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No Recruiter Data</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              No Recruiter Data
+            </h3>
             <p className="text-slate-400 mb-6">
-              Please import data from Google Sheets on the Dashboard to view recruiters.
+              Please import data from Google Sheets on the Dashboard to view
+              recruiters.
             </p>
           </CardContent>
         </Card>

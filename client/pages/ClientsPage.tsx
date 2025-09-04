@@ -115,9 +115,7 @@ const columns: Column[] = [
     key: "email",
     label: "Email",
     sortable: true,
-    render: (value) => (
-      <span className="text-slate-400 text-sm">{value}</span>
-    ),
+    render: (value) => <span className="text-slate-400 text-sm">{value}</span>,
   },
 ];
 
@@ -182,7 +180,9 @@ export default function ClientsPage() {
   // Get unique industries and locations for dropdowns
   const industries = [...new Set(clientsData.map((c) => c.industry))];
   const locations = [
-    ...new Set(clientsData.map((c) => c.location?.split(",")[0]).filter(Boolean)),
+    ...new Set(
+      clientsData.map((c) => c.location?.split(",")[0]).filter(Boolean),
+    ),
   ];
 
   // Calculate summary metrics
@@ -219,9 +219,12 @@ export default function ClientsPage() {
         <Card className="bg-slate-800/50 border-slate-700/50">
           <CardContent className="p-12 text-center">
             <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No Client Data</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              No Client Data
+            </h3>
             <p className="text-slate-400 mb-6">
-              Please import data from Google Sheets on the Dashboard to view clients.
+              Please import data from Google Sheets on the Dashboard to view
+              clients.
             </p>
           </CardContent>
         </Card>

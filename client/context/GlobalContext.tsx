@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from "react";
 
 interface GlobalState {
   selectedRecruiter: string;
@@ -12,7 +12,7 @@ const GlobalContext = createContext<GlobalState | undefined>(undefined);
 export const useGlobalContext = () => {
   const context = useContext(GlobalContext);
   if (context === undefined) {
-    throw new Error('useGlobalContext must be used within a GlobalProvider');
+    throw new Error("useGlobalContext must be used within a GlobalProvider");
   }
   return context;
 };
@@ -29,8 +29,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <GlobalContext.Provider value={value}>
-      {children}
-    </GlobalContext.Provider>
+    <GlobalContext.Provider value={value}>{children}</GlobalContext.Provider>
   );
 };

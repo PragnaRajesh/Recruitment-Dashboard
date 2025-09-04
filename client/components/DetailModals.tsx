@@ -196,7 +196,10 @@ export function RecruiterDetailModal({
                   <div className="flex items-center space-x-3">
                     <Calendar className="w-4 h-4 text-slate-400" />
                     <span className="text-slate-300">
-                      Joined {recruiter.joinDate ? new Date(recruiter.joinDate).toLocaleDateString() : "N/A"}
+                      Joined{" "}
+                      {recruiter.joinDate
+                        ? new Date(recruiter.joinDate).toLocaleDateString()
+                        : "N/A"}
                     </span>
                   </div>
                   <div className="flex items-center space-x-3">
@@ -264,14 +267,13 @@ export function RecruiterDetailModal({
                       <TrendingUp className="w-4 h-4 text-red-400 rotate-180" />
                     )}
                     <span className="text-slate-300">
-                      Performance {recruiter.trend === "up" ? "improving" : "declining"}
+                      Performance{" "}
+                      {recruiter.trend === "up" ? "improving" : "declining"}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Target className="w-4 h-4 text-emerald-400" />
-                    <span className="text-slate-300">
-                      Active recruiter
-                    </span>
+                    <span className="text-slate-300">Active recruiter</span>
                   </div>
                 </CardContent>
               </Card>
@@ -316,7 +318,8 @@ export function RecruiterDetailModal({
             <div className="text-center py-8">
               <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
               <p className="text-slate-400">
-                Recent hired candidates and placement history will be displayed here.
+                Recent hired candidates and placement history will be displayed
+                here.
               </p>
             </div>
           </TabsContent>
@@ -520,7 +523,9 @@ export function ClientDetailModal({
               <div className="flex justify-between">
                 <span className="text-slate-400">Last Activity</span>
                 <span className="text-slate-300 text-sm">
-                  {client.lastActivity ? new Date(client.lastActivity).toLocaleDateString() : "N/A"}
+                  {client.lastActivity
+                    ? new Date(client.lastActivity).toLocaleDateString()
+                    : "N/A"}
                 </span>
               </div>
             </CardContent>
