@@ -30,108 +30,124 @@ import {
   TrendingDown,
   Users,
   Target,
-  DollarSign,
   Calendar,
   Download,
   Filter,
   RefreshCw,
   ChevronDown,
   UserCheck,
-  IndianRupee,
+  Upload,
+  AlertCircle,
 } from "lucide-react";
 import {
   dataService,
   type RecruiterData,
   type PerformanceData,
+  type GoogleSheetsConfig,
 } from "@/services/dataService";
 
-// Sample data updated for Indian context
-const performanceData = [
-  { month: "Jan", recruiters: 45, hired: 123, target: 150, revenue: 6150000 },
-  { month: "Feb", recruiters: 52, hired: 145, target: 150, revenue: 7250000 },
-  { month: "Mar", recruiters: 48, hired: 132, target: 150, revenue: 6600000 },
-  { month: "Apr", recruiters: 61, hired: 168, target: 150, revenue: 8400000 },
-  { month: "May", recruiters: 55, hired: 155, target: 150, revenue: 7750000 },
-  { month: "Jun", recruiters: 58, hired: 172, target: 150, revenue: 8600000 },
-];
+// Google Sheets Import Dialog Component
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-const pieData = [
-  { name: "Hired", value: 68, color: "#10b981" },
-  { name: "In Process", value: 22, color: "#f59e0b" },
-  { name: "Pending", value: 10, color: "#ef4444" },
-];
+const ImportDialog = ({ onImport }: { onImport: (config: GoogleSheetsConfig) => void }) => {
+  const [config, setConfig] = useState<GoogleSheetsConfig>({
+    spreadsheetId: "",
+    apiKey: "",
+    ranges: {
+      recruiters: "Recruiters!A:J",
+      candidates: "Candidates!A:L",
+      clients: "Clients!A:J",
+      performance: "Performance!A:D",
+    },
+  });
+  const [isOpen, setIsOpen] = useState(false);
 
-const recentActivity = [
-  {
-    id: 1,
-    recruiter: "Priya Sharma",
-    action: "Hired candidate",
-    client: "TCS",
-    time: "2 hours ago",
-  },
-  {
-    id: 2,
-    recruiter: "Rahul Kumar",
-    action: "Interview scheduled",
-    client: "HDFC Bank",
-    time: "4 hours ago",
-  },
-  {
-    id: 3,
-    recruiter: "Anita Patel",
-    action: "New lead added",
-    client: "Flipkart",
-    time: "6 hours ago",
-  },
-  {
-    id: 4,
-    recruiter: "Vikram Singh",
-    action: "Client meeting",
-    client: "Reliance",
-    time: "8 hours ago",
-  },
-];
+  const handleImport = () => {
+    onImport(config);
+    setIsOpen(false);
+  };
 
-const topPerformers = [
-  {
-    name: "Priya Sharma",
-    hired: 25,
-    revenue: 1250000,
-    trend: "up",
-    location: "Mumbai",
-  },
-  {
-    name: "Karthik Krishnan",
-    hired: 30,
-    revenue: 1500000,
-    trend: "up",
-    location: "Bangalore",
-  },
-  {
-    name: "Deepika Reddy",
-    hired: 28,
-    revenue: 1400000,
-    trend: "up",
-    location: "Hyderabad",
-  },
-  {
-    name: "Anita Patel",
-    hired: 22,
-    revenue: 1100000,
-    trend: "up",
-    location: "Ahmedabad",
-  },
-];
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button className="bg-emerald-600 hover:bg-emerald-700">
+          <Upload className="w-4 h-4 mr-2" />
+          Import from Google Sheets
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="bg-slate-800 border-slate-700">
+        <DialogHeader>
+          <DialogTitle className="text-white">Import from Google Sheets</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="spreadsheetId" className="text-slate-300">Spreadsheet ID</Label>
+            <Input
+              id="spreadsheetId"
+              value={config.spreadsheetId}
+              onChange={(e) => setConfig({ ...config, spreadsheetId: e.target.value })}
+              placeholder="Enter Google Sheets ID"
+              className="bg-slate-700 border-slate-600 text-white"
+            />
+          </div>
+          <div>
+            <Label htmlFor="apiKey" className="text-slate-300">API Key</Label>
+            <Input
+              id="apiKey"
+              value={config.apiKey}
+              onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
+              placeholder="Enter Google Sheets API Key"
+              className="bg-slate-700 border-slate-600 text-white"
+              type="password"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="recruitersRange" className="text-slate-300">Recruiters Range</Label>
+              <Input
+                id="recruitersRange"
+                value={config.ranges.recruiters}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  ranges: { ...config.ranges, recruiters: e.target.value }
+                })}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div>
+              <Label htmlFor="candidatesRange" className="text-slate-300">Candidates Range</Label>
+              <Input
+                id="candidatesRange"
+                value={config.ranges.candidates}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  ranges: { ...config.ranges, candidates: e.target.value }
+                })}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+          </div>
+          <Button onClick={handleImport} className="w-full bg-emerald-600 hover:bg-emerald-700">
+            Import Data
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState("30d");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [selectedRecruiter, setSelectedRecruiter] = useState<string>("all");
   const [recruiters, setRecruiters] = useState<RecruiterData[]>([]);
-  const [performanceDataState, setPerformanceDataState] =
-    useState<PerformanceData[]>(performanceData);
+  const [performanceDataState, setPerformanceDataState] = useState<PerformanceData[]>([]);
+  const [hasData, setHasData] = useState(false);
 
-  // Load recruiters on component mount
+  // Load data on component mount
   useEffect(() => {
     fetchData();
   }, []);
@@ -143,6 +159,7 @@ export default function DashboardPage() {
       const performanceData = await dataService.fetchPerformanceData();
       setRecruiters(recruitersData);
       setPerformanceDataState(performanceData);
+      setHasData(dataService.hasImportedData());
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -150,17 +167,32 @@ export default function DashboardPage() {
     }
   };
 
+  const handleImport = async (config: GoogleSheetsConfig) => {
+    setIsImporting(true);
+    try {
+      dataService.setGoogleSheetsConfig(config);
+      await dataService.importFromGoogleSheets();
+      await fetchData();
+    } catch (error) {
+      console.error("Error importing data:", error);
+      alert("Failed to import data. Please check your configuration.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleExport = () => {
-    // Create CSV data
+    if (!hasData) {
+      alert("No data to export. Please import data first.");
+      return;
+    }
+
     const csvData = performanceDataState
-      .map(
-        (item) =>
-          `${item.month},${item.recruiters},${item.hired},${item.target},${item.revenue}`,
-      )
+      .map((item) => `${item.month},${item.recruiters},${item.hired},${item.target}`)
       .join("\n");
 
     const blob = new Blob(
-      [`Month,Recruiters,Hired,Target,Revenue\n${csvData}`],
+      [`Month,Recruiters,Hired,Target\n${csvData}`],
       { type: "text/csv" },
     );
     const url = window.URL.createObjectURL(blob);
@@ -175,20 +207,81 @@ export default function DashboardPage() {
     (sum, item) => sum + item.hired,
     0,
   );
-  const totalRevenue = performanceDataState.reduce(
-    (sum, item) => sum + item.revenue,
-    0,
-  );
-  const averageARPU = dataService.calculateARPU(totalRevenue, totalHired);
   const activeRecruiters = recruiters.filter(
     (r) => r.status === "active",
   ).length;
+  const totalTarget = performanceDataState.reduce(
+    (sum, item) => sum + item.target,
+    0,
+  );
+  const achievement = totalTarget > 0 ? Math.round((totalHired / totalTarget) * 100) : 0;
 
   // Filter data by selected recruiter
-  const filteredPerformers =
-    selectedRecruiter === "all"
-      ? topPerformers
-      : topPerformers.filter((p) => p.name === selectedRecruiter);
+  const filteredRecruiters = selectedRecruiter === "all" 
+    ? recruiters 
+    : recruiters.filter((r) => r.name === selectedRecruiter);
+
+  // Get top performers
+  const topPerformers = [...recruiters]
+    .sort((a, b) => b.hired - a.hired)
+    .slice(0, 4);
+
+  // Sample pie data for hiring status
+  const pieData = [
+    { name: "Hired", value: 68, color: "#10b981" },
+    { name: "In Process", value: 22, color: "#f59e0b" },
+    { name: "Pending", value: 10, color: "#ef4444" },
+  ];
+
+  // Sample recent activity
+  const recentActivity = [
+    {
+      id: 1,
+      recruiter: "Latest hire",
+      action: "Candidate hired",
+      client: "Client",
+      time: "Recently",
+    },
+    {
+      id: 2,
+      recruiter: "Recent interview",
+      action: "Interview scheduled",
+      client: "Client",
+      time: "Recently",
+    },
+  ];
+
+  // No data state
+  if (!hasData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Recruitment Dashboard
+            </h1>
+            <p className="text-slate-400">
+              Import data from Google Sheets to get started
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <ImportDialog onImport={handleImport} />
+          </div>
+        </div>
+
+        <Card className="bg-slate-800/50 border-slate-700/50">
+          <CardContent className="p-12 text-center">
+            <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No Data Available</h3>
+            <p className="text-slate-400 mb-6">
+              Connect your Google Sheets to import recruitment data and start tracking performance.
+            </p>
+            <ImportDialog onImport={handleImport} />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -232,6 +325,9 @@ export default function DashboardPage() {
             />
             Fetch Data
           </Button>
+
+          <ImportDialog onImport={handleImport} />
+
           <Button
             variant="outline"
             className="border-slate-600 text-slate-300 hover:bg-slate-800"
@@ -265,7 +361,7 @@ export default function DashboardPage() {
                 <div className="flex items-center mt-2">
                   <TrendingUp className="w-4 h-4 text-emerald-400 mr-1" />
                   <span className="text-emerald-400 text-sm font-medium">
-                    +12.5%
+                    Performance
                   </span>
                 </div>
               </div>
@@ -289,7 +385,7 @@ export default function DashboardPage() {
                 <div className="flex items-center mt-2">
                   <TrendingUp className="w-4 h-4 text-blue-400 mr-1" />
                   <span className="text-blue-400 text-sm font-medium">
-                    +5.2%
+                    Team
                   </span>
                 </div>
               </div>
@@ -305,20 +401,20 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-200 text-sm font-medium">
-                  Total Revenue
+                  Achievement
                 </p>
                 <p className="text-3xl font-bold text-white">
-                  ₹{(totalRevenue / 10000000).toFixed(1)}Cr
+                  {achievement}%
                 </p>
                 <div className="flex items-center mt-2">
                   <TrendingUp className="w-4 h-4 text-purple-400 mr-1" />
                   <span className="text-purple-400 text-sm font-medium">
-                    +8.1%
+                    vs Target
                   </span>
                 </div>
               </div>
               <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                <IndianRupee className="w-6 h-6 text-purple-400" />
+                <Target className="w-6 h-6 text-purple-400" />
               </div>
             </div>
           </CardContent>
@@ -328,22 +424,24 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-200 text-sm font-medium">ARPU</p>
+                <p className="text-orange-200 text-sm font-medium">Monthly Avg</p>
                 <p className="text-3xl font-bold text-white">
-                  ₹{(averageARPU / 1000).toFixed(0)}K
+                  {performanceDataState.length > 0 
+                    ? Math.round(totalHired / performanceDataState.length)
+                    : 0}
                 </p>
                 <p className="text-orange-200 text-xs">
-                  Average Revenue Per User
+                  Average per month
                 </p>
                 <div className="flex items-center mt-2">
                   <TrendingUp className="w-4 h-4 text-orange-400 mr-1" />
                   <span className="text-orange-400 text-sm font-medium">
-                    +3.2%
+                    Trend
                   </span>
                 </div>
               </div>
               <div className="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                <Target className="w-6 h-6 text-orange-400" />
+                <Calendar className="w-6 h-6 text-orange-400" />
               </div>
             </div>
           </CardContent>
@@ -360,42 +458,48 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={performanceDataState}>
-                <defs>
-                  <linearGradient id="colorHired" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="month" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1f2937",
-                    border: "1px solid #374151",
-                    borderRadius: "8px",
-                    color: "#fff",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="hired"
-                  stroke="#10b981"
-                  fillOpacity={1}
-                  fill="url(#colorHired)"
-                  strokeWidth={2}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="target"
-                  stroke="#ef4444"
-                  strokeDasharray="5 5"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {performanceDataState.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={performanceDataState}>
+                  <defs>
+                    <linearGradient id="colorHired" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="month" stroke="#9ca3af" />
+                  <YAxis stroke="#9ca3af" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#1f2937",
+                      border: "1px solid #374151",
+                      borderRadius: "8px",
+                      color: "#fff",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="hired"
+                    stroke="#10b981"
+                    fillOpacity={1}
+                    fill="url(#colorHired)"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="target"
+                    stroke="#ef4444"
+                    strokeDasharray="5 5"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-300 flex items-center justify-center text-slate-400">
+                No performance data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -462,36 +566,42 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredPerformers.map((performer, index) => (
-                <div
-                  key={performer.name}
-                  className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                      {index + 1}
+              {topPerformers.length > 0 ? (
+                topPerformers.map((performer, index) => (
+                  <div
+                    key={performer.name}
+                    className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">{performer.name}</p>
+                        <p className="text-slate-400 text-sm">
+                          {performer.hired} hired • {performer.location}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-medium">{performer.name}</p>
-                      <p className="text-slate-400 text-sm">
-                        {performer.hired} hired • {performer.location}
+                    <div className="text-right">
+                      <p className="text-emerald-400 font-bold">
+                        {performer.hired} hired
                       </p>
+                      <div className="flex items-center justify-end">
+                        {performer.trend === "up" ? (
+                          <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <TrendingDown className="w-4 h-4 text-red-400" />
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-emerald-400 font-bold">
-                      ₹{(performer.revenue / 100000).toFixed(1)}L
-                    </p>
-                    <div className="flex items-center justify-end">
-                      {performer.trend === "up" ? (
-                        <TrendingUp className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <TrendingDown className="w-4 h-4 text-red-400" />
-                      )}
-                    </div>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center text-slate-400 py-8">
+                  No performance data available
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
