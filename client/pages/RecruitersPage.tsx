@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { dataService, type RecruiterData } from "@/services/dataService";
 import { Card, CardContent } from "@/components/ui/card";
+import { useGlobalContext } from "@/context/GlobalContext";
 
 const columns: Column[] = [
   {
