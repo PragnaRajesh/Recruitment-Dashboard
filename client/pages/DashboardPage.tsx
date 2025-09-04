@@ -45,6 +45,7 @@ import {
   type PerformanceData,
   type GoogleSheetsConfig,
 } from "@/services/dataService";
+import { useGlobalContext } from "@/context/GlobalContext";
 
 // Google Sheets Import Dialog Component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
