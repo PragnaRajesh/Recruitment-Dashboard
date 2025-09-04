@@ -16,10 +16,11 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
-  IndianRupee,
   MapPin,
+  AlertCircle,
 } from "lucide-react";
 import { dataService, type RecruiterData } from "@/services/dataService";
+import { Card, CardContent } from "@/components/ui/card";
 
 const columns: Column[] = [
   {
@@ -68,28 +69,6 @@ const columns: Column[] = [
     ),
   },
   {
-    key: "revenue",
-    label: "Revenue",
-    sortable: true,
-    render: (value) => (
-      <div className="flex items-center text-emerald-400 font-medium">
-        <IndianRupee className="w-3 h-3 mr-1" />
-        {(value / 100000).toFixed(1)}L
-      </div>
-    ),
-  },
-  {
-    key: "arpu",
-    label: "ARPU",
-    sortable: true,
-    render: (value) => (
-      <div className="flex items-center text-orange-400 font-medium">
-        <IndianRupee className="w-3 h-3 mr-1" />
-        {(value / 1000).toFixed(0)}K
-      </div>
-    ),
-  },
-  {
     key: "status",
     label: "Status",
     sortable: true,
@@ -118,6 +97,16 @@ const columns: Column[] = [
       </div>
     ),
   },
+  {
+    key: "joinDate",
+    label: "Join Date",
+    sortable: true,
+    render: (value) => (
+      <span className="text-slate-400 text-sm">
+        {value ? new Date(value).toLocaleDateString("en-IN") : "N/A"}
+      </span>
+    ),
+  },
 ];
 
 export default function RecruitersPage() {
@@ -129,6 +118,7 @@ export default function RecruitersPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
+  const [hasData, setHasData] = useState(false);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -140,6 +130,7 @@ export default function RecruitersPage() {
     try {
       const data = await dataService.fetchRecruiters();
       setRecruitersData(data);
+      setHasData(dataService.hasImportedData());
     } catch (error) {
       console.error("Error fetching recruiters:", error);
     } finally {
@@ -183,14 +174,37 @@ export default function RecruitersPage() {
 
   // Calculate summary metrics
   const totalHired = filteredData.reduce((sum, r) => sum + r.hired, 0);
-  const totalRevenue = filteredData.reduce((sum, r) => sum + r.revenue, 0);
-  const averageARPU =
-    filteredData.length > 0
-      ? dataService.calculateARPU(totalRevenue, totalHired)
-      : 0;
   const activeRecruiters = filteredData.filter(
     (r) => r.status === "active",
   ).length;
+
+  // No data state
+  if (!hasData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Recruiter Management
+            </h1>
+            <p className="text-slate-400">
+              Import data to view and manage recruiters
+            </p>
+          </div>
+        </div>
+
+        <Card className="bg-slate-800/50 border-slate-700/50">
+          <CardContent className="p-12 text-center">
+            <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No Recruiter Data</h3>
+            <p className="text-slate-400 mb-6">
+              Please import data from Google Sheets on the Dashboard to view recruiters.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -227,7 +241,7 @@ export default function RecruitersPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-emerald-900/50 to-emerald-800/30 border border-emerald-700/50 rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -258,27 +272,13 @@ export default function RecruitersPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-200 text-sm font-medium">
-                Total Revenue
+                Total Recruiters
               </p>
               <p className="text-2xl font-bold text-white">
-                ₹{(totalRevenue / 10000000).toFixed(1)}Cr
+                {filteredData.length}
               </p>
             </div>
-            <IndianRupee className="w-8 h-8 text-purple-400" />
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-orange-900/50 to-orange-800/30 border border-orange-700/50 rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-orange-200 text-sm font-medium">
-                Average ARPU
-              </p>
-              <p className="text-2xl font-bold text-white">
-                ₹{(averageARPU / 1000).toFixed(0)}K
-              </p>
-            </div>
-            <TrendingUp className="w-8 h-8 text-orange-400" />
+            <TrendingUp className="w-8 h-8 text-purple-400" />
           </div>
         </div>
       </div>
