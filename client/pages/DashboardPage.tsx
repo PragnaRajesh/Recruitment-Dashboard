@@ -187,7 +187,7 @@ export default function DashboardPage() {
   };
 
   const handleExport = () => {
-    if (!hasData) {
+    if (!hasImportedData) {
       alert("No data to export. Please import data first.");
       return;
     }
