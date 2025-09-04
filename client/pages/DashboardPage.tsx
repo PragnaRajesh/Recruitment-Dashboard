@@ -257,7 +257,7 @@ export default function DashboardPage() {
   ];
 
   // No data state
-  if (!hasData) {
+  if (!hasImportedData) {
     return (
       <div className="space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
