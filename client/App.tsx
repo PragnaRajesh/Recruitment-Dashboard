@@ -56,25 +56,27 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-x-hidden">
-          <div className="flex">
-            {/* Sidebar */}
-            <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <GlobalProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-x-hidden">
+            <div className="flex">
+              {/* Sidebar */}
+              <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-            {/* Main Content */}
-            <div className="flex-1 lg:ml-16 transition-all duration-300 min-w-0 overflow-x-hidden">
-              <main className="p-4 sm:p-6 lg:p-8">
-                <div className="max-w-7xl mx-auto w-full">
-                  {renderContent()}
-                </div>
-              </main>
+              {/* Main Content */}
+              <div className="flex-1 lg:ml-16 transition-all duration-300 min-w-0 overflow-x-hidden">
+                <main className="p-4 sm:p-6 lg:p-8">
+                  <div className="max-w-7xl mx-auto w-full">
+                    {renderContent()}
+                  </div>
+                </main>
+              </div>
             </div>
           </div>
-        </div>
-      </TooltipProvider>
+        </TooltipProvider>
+      </GlobalProvider>
     </QueryClientProvider>
   );
 };
