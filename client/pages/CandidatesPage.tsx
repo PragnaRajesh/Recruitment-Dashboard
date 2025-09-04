@@ -19,6 +19,7 @@ import {
   IndianRupee,
   MapPin,
   Award,
+  AlertCircle,
 } from "lucide-react";
 import { dataService, type CandidateData } from "@/services/dataService";
 
@@ -112,7 +113,7 @@ const columns: Column[] = [
     render: (value) => (
       <div className="flex items-center text-emerald-400 font-medium">
         <IndianRupee className="w-3 h-3 mr-1" />
-        {(value / 100000).toFixed(1)}L
+        {value > 0 ? (value / 100000).toFixed(1) + "L" : "N/A"}
       </div>
     ),
   },
@@ -135,8 +136,18 @@ const columns: Column[] = [
     render: (value) => (
       <div className="flex items-center text-slate-300">
         <MapPin className="w-3 h-3 mr-1" />
-        {value.split(",")[0]}
+        {value ? value.split(",")[0] : "N/A"}
       </div>
+    ),
+  },
+  {
+    key: "appliedDate",
+    label: "Applied Date",
+    sortable: true,
+    render: (value) => (
+      <span className="text-slate-400 text-sm">
+        {value ? new Date(value).toLocaleDateString("en-IN") : "N/A"}
+      </span>
     ),
   },
 ];
@@ -148,6 +159,7 @@ export default function CandidatesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedRecruiter, setSelectedRecruiter] = useState<string>("all");
+  const [hasData, setHasData] = useState(false);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -159,6 +171,7 @@ export default function CandidatesPage() {
     try {
       const data = await dataService.fetchCandidates();
       setCandidatesData(data);
+      setHasData(dataService.hasImportedData());
     } catch (error) {
       console.error("Error fetching candidates:", error);
     } finally {
@@ -211,12 +224,40 @@ export default function CandidatesPage() {
     (c) => c.status === "pending",
   ).length;
   const avgSalary =
-    filteredData.length > 0
+    filteredData.length > 0 && filteredData.some(c => c.salary > 0)
       ? Math.round(
-          filteredData.reduce((sum, c) => sum + c.salary, 0) /
-            filteredData.length,
+          filteredData.filter(c => c.salary > 0).reduce((sum, c) => sum + c.salary, 0) /
+            filteredData.filter(c => c.salary > 0).length,
         )
       : 0;
+
+  // No data state
+  if (!hasData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Candidate Management
+            </h1>
+            <p className="text-slate-400">
+              Import data to view and manage candidates
+            </p>
+          </div>
+        </div>
+
+        <Card className="bg-slate-800/50 border-slate-700/50">
+          <CardContent className="p-12 text-center">
+            <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No Candidate Data</h3>
+            <p className="text-slate-400 mb-6">
+              Please import data from Google Sheets on the Dashboard to view candidates.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -307,7 +348,7 @@ export default function CandidatesPage() {
             <div>
               <p className="text-orange-200 text-sm font-medium">Avg. Salary</p>
               <p className="text-2xl font-bold text-white">
-                ₹{(avgSalary / 100000).toFixed(1)}L
+                {avgSalary > 0 ? `₹${(avgSalary / 100000).toFixed(1)}L` : "N/A"}
               </p>
             </div>
             <IndianRupee className="w-8 h-8 text-orange-400" />
