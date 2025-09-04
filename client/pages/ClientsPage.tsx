@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -14,10 +15,10 @@ import { ClientDetailModal } from "@/components/DetailModals";
 import {
   Plus,
   Building2,
-  IndianRupee,
   Clock,
   RefreshCw,
   MapPin,
+  AlertCircle,
 } from "lucide-react";
 import { dataService, type ClientData } from "@/services/dataService";
 
@@ -56,7 +57,7 @@ const columns: Column[] = [
     render: (value) => (
       <div className="flex items-center text-slate-300">
         <MapPin className="w-3 h-3 mr-1" />
-        {value.split(",")[0]}
+        {value ? value.split(",")[0] : "N/A"}
       </div>
     ),
   },
@@ -66,28 +67,6 @@ const columns: Column[] = [
     sortable: true,
     render: (value) => (
       <span className="text-emerald-400 font-medium">{value}</span>
-    ),
-  },
-  {
-    key: "revenue",
-    label: "Revenue",
-    sortable: true,
-    render: (value) => (
-      <div className="flex items-center text-emerald-400 font-medium">
-        <IndianRupee className="w-3 h-3 mr-1" />
-        {(value / 100000).toFixed(1)}L
-      </div>
-    ),
-  },
-  {
-    key: "arpu",
-    label: "ARPU",
-    sortable: true,
-    render: (value) => (
-      <div className="flex items-center text-orange-400 font-medium">
-        <IndianRupee className="w-3 h-3 mr-1" />
-        {(value / 1000).toFixed(0)}K
-      </div>
     ),
   },
   {
@@ -128,8 +107,16 @@ const columns: Column[] = [
     sortable: true,
     render: (value) => (
       <span className="text-slate-400 text-sm">
-        {new Date(value).toLocaleDateString("en-IN")}
+        {value ? new Date(value).toLocaleDateString("en-IN") : "N/A"}
       </span>
+    ),
+  },
+  {
+    key: "email",
+    label: "Email",
+    sortable: true,
+    render: (value) => (
+      <span className="text-slate-400 text-sm">{value}</span>
     ),
   },
 ];
@@ -143,6 +130,7 @@ export default function ClientsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndustry, setSelectedIndustry] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
+  const [hasData, setHasData] = useState(false);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -154,6 +142,7 @@ export default function ClientsPage() {
     try {
       const data = await dataService.fetchClients();
       setClientsData(data);
+      setHasData(dataService.hasImportedData());
     } catch (error) {
       console.error("Error fetching clients:", error);
     } finally {
@@ -193,14 +182,10 @@ export default function ClientsPage() {
   // Get unique industries and locations for dropdowns
   const industries = [...new Set(clientsData.map((c) => c.industry))];
   const locations = [
-    ...new Set(clientsData.map((c) => c.location.split(",")[0])),
+    ...new Set(clientsData.map((c) => c.location?.split(",")[0]).filter(Boolean)),
   ];
 
   // Calculate summary metrics
-  const totalRevenue = filteredData.reduce(
-    (sum, client) => sum + client.revenue,
-    0,
-  );
   const totalHired = filteredData.reduce(
     (sum, client) => sum + client.totalHired,
     0,
@@ -212,10 +197,37 @@ export default function ClientsPage() {
             filteredData.length,
         )
       : 0;
-  const averageARPU =
-    filteredData.length > 0
-      ? dataService.calculateARPU(totalRevenue, totalHired)
-      : 0;
+  const activeClients = filteredData.filter(
+    (c) => c.status === "active",
+  ).length;
+
+  // No data state
+  if (!hasData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Client Management
+            </h1>
+            <p className="text-slate-400">
+              Import data to view and manage clients
+            </p>
+          </div>
+        </div>
+
+        <Card className="bg-slate-800/50 border-slate-700/50">
+          <CardContent className="p-12 text-center">
+            <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No Client Data</h3>
+            <p className="text-slate-400 mb-6">
+              Please import data from Google Sheets on the Dashboard to view clients.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -253,20 +265,6 @@ export default function ClientsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-emerald-900/50 to-emerald-800/30 border border-emerald-700/50 rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-emerald-200 text-sm font-medium">
-                Total Revenue
-              </p>
-              <p className="text-2xl font-bold text-white">
-                ₹{(totalRevenue / 10000000).toFixed(1)}Cr
-              </p>
-            </div>
-            <IndianRupee className="w-8 h-8 text-emerald-400" />
-          </div>
-        </div>
-
         <div className="bg-gradient-to-br from-blue-900/50 to-blue-800/30 border border-blue-700/50 rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -274,6 +272,18 @@ export default function ClientsPage() {
               <p className="text-2xl font-bold text-white">{totalHired}</p>
             </div>
             <Building2 className="w-8 h-8 text-blue-400" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-emerald-900/50 to-emerald-800/30 border border-emerald-700/50 rounded-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-emerald-200 text-sm font-medium">
+                Active Clients
+              </p>
+              <p className="text-2xl font-bold text-white">{activeClients}</p>
+            </div>
+            <Building2 className="w-8 h-8 text-emerald-400" />
           </div>
         </div>
 
@@ -293,13 +303,13 @@ export default function ClientsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-orange-200 text-sm font-medium">
-                Average ARPU
+                Total Clients
               </p>
               <p className="text-2xl font-bold text-white">
-                ₹{(averageARPU / 1000).toFixed(0)}K
+                {filteredData.length}
               </p>
             </div>
-            <IndianRupee className="w-8 h-8 text-orange-400" />
+            <Building2 className="w-8 h-8 text-orange-400" />
           </div>
         </div>
       </div>
