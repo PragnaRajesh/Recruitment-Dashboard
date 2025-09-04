@@ -140,10 +140,10 @@ const ImportDialog = ({ onImport }: { onImport: (config: GoogleSheetsConfig) => 
 };
 
 export default function DashboardPage() {
+  const { selectedRecruiter, setSelectedRecruiter, hasImportedData, setHasImportedData } = useGlobalContext();
   const [timeRange, setTimeRange] = useState("30d");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [selectedRecruiter, setSelectedRecruiter] = useState<string>("all");
   const [recruiters, setRecruiters] = useState<RecruiterData[]>([]);
   const [performanceDataState, setPerformanceDataState] = useState<PerformanceData[]>([]);
   const [hasData, setHasData] = useState(false);
