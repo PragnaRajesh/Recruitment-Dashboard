@@ -176,6 +176,8 @@ export default function DashboardPage() {
       dataService.setGoogleSheetsConfig(config);
       await dataService.importFromGoogleSheets();
       await fetchData();
+      // Reset recruiter filter when new data is imported
+      setSelectedRecruiter("all");
     } catch (error) {
       console.error("Error importing data:", error);
       alert("Failed to import data. Please check your configuration.");
