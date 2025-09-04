@@ -11,14 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Mail,
   Phone,
   MapPin,
   Calendar,
-  DollarSign,
   TrendingUp,
   User,
   Building2,
@@ -29,6 +27,7 @@ import {
   Award,
   Target,
   Clock,
+  Users,
 } from "lucide-react";
 import {
   LineChart,
@@ -38,8 +37,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
 } from "recharts";
 
 // Types
@@ -51,10 +48,9 @@ interface Recruiter {
   department: string;
   territory: string;
   hired: number;
-  revenue: number;
   joinDate: string;
   status: string;
-  arpu: number;
+  trend: string;
   location: string;
   avatar?: string;
 }
@@ -66,20 +62,21 @@ interface Client {
   email: string;
   phone: string;
   industry: string;
-  totalPlacements: number;
-  revenue: number;
+  totalHired: number;
   avgDaysToFill: number;
   status: string;
+  location: string;
+  lastActivity: string;
 }
 
-// Sample performance data
+// Sample performance data for hired candidates
 const monthlyPerformance = [
-  { month: "Jan", placements: 5, revenue: 12000 },
-  { month: "Feb", placements: 8, revenue: 18000 },
-  { month: "Mar", placements: 6, revenue: 15000 },
-  { month: "Apr", placements: 12, revenue: 28000 },
-  { month: "May", placements: 10, revenue: 22000 },
-  { month: "Jun", placements: 14, revenue: 32000 },
+  { month: "Jan", hired: 5 },
+  { month: "Feb", hired: 8 },
+  { month: "Mar", hired: 6 },
+  { month: "Apr", hired: 12 },
+  { month: "May", hired: 10 },
+  { month: "Jun", hired: 14 },
 ];
 
 // Recruiter Detail Modal
@@ -117,7 +114,7 @@ export function RecruiterDetailModal({
                   {recruiter.name}
                 </DialogTitle>
                 <DialogDescription className="text-slate-400">
-                  {recruiter.department} • {recruiter.territory} territories
+                  {recruiter.department} • {recruiter.territory}
                 </DialogDescription>
               </div>
             </div>
@@ -167,7 +164,7 @@ export function RecruiterDetailModal({
               value="placements"
               className="data-[state=active]:bg-emerald-600"
             >
-              Placements
+              Hired Candidates
             </TabsTrigger>
             <TabsTrigger
               value="settings"
@@ -199,8 +196,12 @@ export function RecruiterDetailModal({
                   <div className="flex items-center space-x-3">
                     <Calendar className="w-4 h-4 text-slate-400" />
                     <span className="text-slate-300">
-                      Joined {recruiter.joinDate}
+                      Joined {recruiter.joinDate ? new Date(recruiter.joinDate).toLocaleDateString() : "N/A"}
                     </span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <MapPin className="w-4 h-4 text-slate-400" />
+                    <span className="text-slate-300">{recruiter.location}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -215,24 +216,21 @@ export function RecruiterDetailModal({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Total Placements</span>
+                    <span className="text-slate-400">Total Hired</span>
                     <span className="text-emerald-400 font-bold">
-                      {recruiter.placements}
+                      {recruiter.hired}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Revenue Generated</span>
-                    <span className="text-emerald-400 font-bold">
-                      ${recruiter.revenue.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Avg. Per Placement</span>
+                    <span className="text-slate-400">Department</span>
                     <span className="text-white font-bold">
-                      $
-                      {Math.round(
-                        recruiter.revenue / recruiter.placements,
-                      ).toLocaleString()}
+                      {recruiter.department}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Territory</span>
+                    <span className="text-white font-bold">
+                      {recruiter.territory}
                     </span>
                   </div>
                 </CardContent>
@@ -243,7 +241,7 @@ export function RecruiterDetailModal({
                 <CardHeader>
                   <CardTitle className="text-white flex items-center">
                     <Award className="w-5 h-5 mr-2" />
-                    Status & Achievements
+                    Status & Performance
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -260,13 +258,19 @@ export function RecruiterDetailModal({
                     </Badge>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Star className="w-4 h-4 text-yellow-400" />
-                    <span className="text-slate-300">Top Performer Q2</span>
+                    {recruiter.trend === "up" ? (
+                      <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <TrendingUp className="w-4 h-4 text-red-400 rotate-180" />
+                    )}
+                    <span className="text-slate-300">
+                      Performance {recruiter.trend === "up" ? "improving" : "declining"}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Target className="w-4 h-4 text-emerald-400" />
                     <span className="text-slate-300">
-                      95% Target Achievement
+                      Active recruiter
                     </span>
                   </div>
                 </CardContent>
@@ -278,7 +282,7 @@ export function RecruiterDetailModal({
             <Card className="bg-slate-700/50 border-slate-600">
               <CardHeader>
                 <CardTitle className="text-white">
-                  Monthly Performance
+                  Monthly Hiring Performance
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -297,15 +301,10 @@ export function RecruiterDetailModal({
                     />
                     <Line
                       type="monotone"
-                      dataKey="placements"
+                      dataKey="hired"
                       stroke="#10b981"
                       strokeWidth={2}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
+                      name="Hired Candidates"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -315,9 +314,9 @@ export function RecruiterDetailModal({
 
           <TabsContent value="placements" className="space-y-6">
             <div className="text-center py-8">
-              <Building2 className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+              <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
               <p className="text-slate-400">
-                Recent placements and candidate history will be displayed here.
+                Recent hired candidates and placement history will be displayed here.
               </p>
             </div>
           </TabsContent>
@@ -382,17 +381,32 @@ export function RecruiterDetailModal({
                   </div>
                   <div>
                     <Label htmlFor="territory" className="text-slate-300">
-                      Territory Count
+                      Territory
                     </Label>
                     <Input
                       id="territory"
-                      type="number"
                       defaultValue={recruiter.territory}
                       className="bg-slate-700 border-slate-600 text-white"
                       onChange={(e) =>
                         setEditData({
                           ...editData,
-                          territory: parseInt(e.target.value),
+                          territory: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="location" className="text-slate-300">
+                      Location
+                    </Label>
+                    <Input
+                      id="location"
+                      defaultValue={recruiter.location}
+                      className="bg-slate-700 border-slate-600 text-white"
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          location: e.target.value,
                         })
                       }
                     />
@@ -470,6 +484,10 @@ export function ClientDetailModal({
                 <Building2 className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-300">{client.industry}</span>
               </div>
+              <div className="flex items-center space-x-3">
+                <MapPin className="w-4 h-4 text-slate-400" />
+                <span className="text-slate-300">{client.location}</span>
+              </div>
             </CardContent>
           </Card>
 
@@ -479,21 +497,30 @@ export function ClientDetailModal({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-slate-400">Total Placements</span>
+                <span className="text-slate-400">Total Hired</span>
                 <span className="text-emerald-400 font-bold">
-                  {client.totalPlacements}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Total Revenue</span>
-                <span className="text-emerald-400 font-bold">
-                  ${client.revenue.toLocaleString()}
+                  {client.totalHired}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Avg. Days to Fill</span>
                 <span className="text-white font-bold">
                   {client.avgDaysToFill} days
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Status</span>
+                <Badge
+                  variant={client.status === "active" ? "default" : "secondary"}
+                  className={client.status === "active" ? "bg-emerald-600" : ""}
+                >
+                  {client.status}
+                </Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Last Activity</span>
+                <span className="text-slate-300 text-sm">
+                  {client.lastActivity ? new Date(client.lastActivity).toLocaleDateString() : "N/A"}
                 </span>
               </div>
             </CardContent>
