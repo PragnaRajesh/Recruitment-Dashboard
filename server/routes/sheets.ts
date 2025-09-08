@@ -1,5 +1,5 @@
 import { RequestHandler } from 'express';
-import { importSheetsAndSave, fetchAll } from '../services/sheetsService';
+import { importSheetsAndSave, fetchAll, importPublishedAndSave } from '../services/sheetsService';
 import { saveSheetsConfig, getAllSheetsConfigs } from '../services/configService';
 
 export const handleImportSheets: RequestHandler = async (req, res) => {
@@ -13,16 +13,13 @@ export const handleImportSheets: RequestHandler = async (req, res) => {
       if (match) spreadsheetId = match[1];
     }
 
-    // Prefer request API key → fallback to env
-    const apiKey = config.apiKey || process.env.GOOGLE_SHEETS_API_KEY || "";
+    // Prefer request API key → fallback to env (optional if service account is configured)
+    const apiKey = config.apiKey || process.env.GOOGLE_SHEETS_API_KEY || undefined;
 
     if (!spreadsheetId) {
       return res.status(400).json({ error: 'Missing spreadsheetId or sheetLink' });
     }
 
-    if (!apiKey) {
-      return res.status(400).json({ error: 'Missing Google Sheets API key. Set GOOGLE_SHEETS_API_KEY in .env or provide apiKey in the request.' });
-    }
 
     const finalConfig = {
       spreadsheetId,
@@ -35,8 +32,25 @@ export const handleImportSheets: RequestHandler = async (req, res) => {
       },
     };
 
-    const data = await importSheetsAndSave(finalConfig);
-    return res.status(200).json(data);
+    try {
+      const data = await importSheetsAndSave(finalConfig);
+      return res.status(200).json(data);
+    } catch (err: any) {
+      console.error('Import sheets error:', err && err.message ? err.message : err);
+      // If the server lacks Google API access, attempt published CSV fallback server-side
+      const msg = err && err.message ? err.message : '';
+      if (msg && msg.toLowerCase().includes('google sheets access not configured')) {
+        try {
+          const published = await importPublishedAndSave(spreadsheetId, finalConfig.ranges, (config as any).gid);
+          return res.status(200).json(published);
+        } catch (pubErr: any) {
+          console.error('Published fallback failed:', pubErr && pubErr.message ? pubErr.message : pubErr);
+          return res.status(500).json({ error: pubErr && pubErr.message ? pubErr.message : 'Import failed' });
+        }
+      }
+
+      return res.status(500).json({ error: err.message || 'Import failed' });
+    }
   } catch (err: any) {
     console.error('Import sheets error:', err);
     return res.status(500).json({ error: err.message || 'Import failed' });
@@ -56,8 +70,8 @@ export const handleFetchData: RequestHandler = async (_req, res) => {
 export const handleSaveConfig: RequestHandler = async (req, res) => {
   try {
     const config = req.body;
-    if (!config || !config.spreadsheetId || !config.apiKey) {
-      return res.status(400).json({ error: 'Missing spreadsheetId or apiKey' });
+    if (!config || !config.spreadsheetId) {
+      return res.status(400).json({ error: 'Missing spreadsheetId' });
     }
 
     const saved = await saveSheetsConfig(config);

@@ -16,24 +16,14 @@ import {
   Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/services/utils";
+import { menuItems } from "@/data/navigation";
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
 
-const menuItems = [
-  { id: "dashboard", label: "Dashboard", icon: Home },
-  { id: "recruiters", label: "Recruiters", icon: Users },
-  { id: "clients", label: "Clients", icon: Building2 },
-  { id: "performance", label: "Performance", icon: TrendingUp },
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "candidates", label: "Candidates", icon: UserCheck },
-  { id: "schedule", label: "Schedule", icon: Calendar },
-  { id: "reports", label: "Reports", icon: FileText },
-  { id: "targets", label: "Targets", icon: Target },
-];
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);

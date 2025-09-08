@@ -104,7 +104,7 @@ export const Performance = mongoose.models.Performance || mongoose.model<IPerfor
 // Sheets config schema
 export interface ISheetsConfig extends Document {
   spreadsheetId: string;
-  apiKey: string;
+  apiKey?: string;
   ranges: {
     recruiters: string;
     candidates: string;
@@ -118,7 +118,7 @@ export interface ISheetsConfig extends Document {
 
 export const SheetsConfigSchema = new Schema<ISheetsConfig>({
   spreadsheetId: { type: String, required: true, unique: true },
-  apiKey: { type: String, required: true },
+  apiKey: { type: String, required: false },
   ranges: {
     recruiters: String,
     candidates: String,

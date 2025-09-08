@@ -58,12 +58,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const ImportDialog = ({ onImport }: { onImport: (config: GoogleSheetsConfig) => void }) => {
+function ConnectSheetsBar({ onConnect }: { onConnect: (config: any) => void }) {
   const [sheetLink, setSheetLink] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState("");
 
-  const handleImport = () => {
+  const connect = async () => {
     const idMatch =
       sheetLink.match(/spreadsheets\/d\/([-_a-zA-Z0-9]+)|[&?]id=([-_a-zA-Z0-9]+)/) ||
       sheetLink.match(/^[-_a-zA-Z0-9]+$/);
@@ -74,70 +72,45 @@ const ImportDialog = ({ onImport }: { onImport: (config: GoogleSheetsConfig) => 
     }
 
     if (!spreadsheetId) {
-      alert("Invalid Google Sheet link or ID. Paste the full link or the sheet ID.");
+      alert("Invalid Google Sheet link or ID.");
       return;
     }
 
-    const cfg: GoogleSheetsConfig = {
+    const cfg: any = {
       spreadsheetId,
-      apiKey: apiKeyInput || "",
+      sheetLink,
       ranges: {
         recruiters: "Recruiters!A:J",
         candidates: "Candidates!A:L",
         clients: "Clients!A:J",
         performance: "Performance!A:D",
       },
+      // silently save config server-side and enable server auto-refresh by default
+      saveConfig: true,
+      autoRefresh: true,
+      refreshIntervalMinutes: 60,
     };
 
-    onImport(cfg);
-    setIsOpen(false);
+    onConnect(cfg);
+    setSheetLink("");
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-emerald-600 hover:bg-emerald-700">
-          <Upload className="w-4 h-4 mr-2" />
-          Import from Google Sheets
-        </Button>
-      </DialogTrigger>
+    <div className="flex items-center gap-2 w-full max-w-xl">
+      <Input
+        value={sheetLink}
+        onChange={(e) => setSheetLink(e.target.value)}
+        placeholder="Paste Google Sheets link or ID"
+        className="bg-slate-800 border-slate-600 text-white"
+      />
 
-      <DialogContent className="bg-slate-800 border-slate-700">
-        <DialogHeader>
-          <DialogTitle className="text-white">Import from Google Sheets</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="sheetLink" className="text-slate-300">Google Sheet Link or ID</Label>
-            <Input
-              id="sheetLink"
-              value={sheetLink}
-              onChange={(e) => setSheetLink(e.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/d/..."
-              className="bg-slate-700 border-slate-600 text-white"
-            />
-            <p className="text-xs text-slate-400 mt-1">Paste the full Google Sheets URL or the spreadsheet ID. The server will use the configured API key, or you can provide one below for this import.</p>
-          </div>
-
-          <div>
-            <Label htmlFor="apiKeyLocal" className="text-slate-300">Google Sheets API Key (optional)</Label>
-            <Input
-              id="apiKeyLocal"
-              value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
-              placeholder="Paste API key here (optional)"
-              className="bg-slate-700 border-slate-600 text-white"
-            />
-            <p className="text-xs text-slate-400 mt-1">Only used for this import; not saved to the repo. Prefer server env var for persistent use.</p>
-          </div>
-
-          <Button onClick={handleImport} className="w-full bg-emerald-600 hover:bg-emerald-700">Import Data</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={connect}>
+        <Upload className="w-4 h-4 mr-2" />
+        Connect
+      </Button>
+    </div>
   );
-};
+}
 
 export default function DashboardPage() {
   const {
@@ -149,6 +122,7 @@ export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState("30d");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [savedConfigs, setSavedConfigs] = useState<any[]>([]);
   const [recruiters, setRecruiters] = useState<RecruiterData[]>([]);
   const [performanceDataState, setPerformanceDataState] = useState<
     PerformanceData[]
@@ -191,6 +165,37 @@ export default function DashboardPage() {
 
   const handleImport = async (config: GoogleSheetsConfig) => {
     setIsImporting(true);
+
+    // If user asked to save config, persist it first so the server can poll / auto-refresh even if immediate import fails
+    if ((config as any).saveConfig) {
+      try {
+        await fetch('/api/save-sheets-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            spreadsheetId: (config as any).spreadsheetId,
+            apiKey: (config as any).apiKey,
+            ranges: config.ranges,
+            autoRefresh: !!(config as any).autoRefresh,
+            refreshIntervalMinutes: Number((config as any).refreshIntervalMinutes) || 60,
+          }),
+        });
+        // refresh saved configs list silently
+        try {
+          const listRes = await fetch('/api/sheets-configs');
+          if (listRes && listRes.ok) {
+            const configs = await listRes.json();
+            setSavedConfigs(configs || []);
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      } catch (e) {
+        console.error('Failed to save sheets config', e);
+        // continue — we still attempt import, server may accept on next poll if corrected
+      }
+    }
+
     try {
       dataService.setGoogleSheetsConfig(config);
       await dataService.importFromGoogleSheets();
@@ -198,53 +203,39 @@ export default function DashboardPage() {
       setSelectedRecruiter("all");
       return;
     } catch (error: any) {
-      console.error("Error importing data (server):", error);
-      // Attempt client-side published fallback
-      try {
-        const sheetId = config.spreadsheetId || "";
-        if (sheetId) {
-          const gidMatch = (config as any).sheetLink
-            ? String((config as any).sheetLink).match(/[?&]gid=(\d+)|#gid=(\d+)/)
-            : null;
-          let gid: string | undefined = undefined;
-          if (Array.isArray(gidMatch)) gid = gidMatch[1] || gidMatch[2] || undefined;
-
-          // Try multi-tab import first
-          const pub = await dataService.importFromPublishedSheets(sheetId, gid);
-          if (pub && (pub.recruiters.length || pub.performance.length || pub.clients.length || pub.candidates.length)) {
-            setRecruiters(pub.recruiters);
-            setPerformanceDataState(pub.performance);
-            const dataImported = dataService.hasImportedData();
-            setHasData(dataImported);
-            setHasImportedData(dataImported);
-            setSelectedRecruiter('all');
-            alert('Server import failed, but the app successfully imported from the published sheet (client-side).');
-            return;
-          }
-
-          // Try single-sheet fallback
-          const single = await dataService.importSingleSheet(sheetId, gid);
-          if (single && single.recruiters.length) {
-            setRecruiters(single.recruiters);
-            setPerformanceDataState(single.performance);
-            const dataImported = dataService.hasImportedData();
-            setHasData(dataImported);
-            setHasImportedData(dataImported);
-            setSelectedRecruiter('all');
-            alert('Server import failed, but the app successfully imported as single-sheet recruiters (client-side).');
-            return;
-          }
-        }
-      } catch (clientErr) {
-        console.error('Client-side fallback failed:', clientErr);
-      }
-
-      const msg = error && error.message ? error.message : 'Failed to import data. Please check your configuration.';
-      alert(msg);
+      // Do NOT attempt any client-side fetch or published fallbacks here. Rely on server-side import/polling.
+      console.error('Server import failed:', error);
+      // Inform the user minimally
+      alert('Import failed on the server. If you saved the config the server will retry automatically. Check server logs for details.');
     } finally {
       setIsImporting(false);
     }
   };
+
+  // Load saved sheets configs and auto-import if present
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/sheets-configs');
+        if (!res || !res.ok) return;
+        const configs = await res.json().catch(() => []);
+        setSavedConfigs(configs || []);
+        if (configs && configs.length > 0) {
+          const preferred = configs.find((c: any) => c.autoRefresh) || configs[0];
+          if (preferred) {
+            // attempt import using saved config
+            try {
+              await handleImport(preferred as GoogleSheetsConfig);
+            } catch (e) {
+              console.error('Auto import from saved config failed', e);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load saved sheet configs', e);
+      }
+    })();
+  }, []);
 
   const handleImportPublished = async (spreadsheetId: string, gid?: string, singleSheet?: boolean) => {
     setIsImporting(true);
@@ -362,7 +353,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <ImportDialog onImport={handleImport} />
+            <ConnectSheetsBar onConnect={handleImport} />
           </div>
         </div>
 
@@ -376,7 +367,7 @@ export default function DashboardPage() {
               Connect your Google Sheets to import recruitment data and start
               tracking performance.
             </p>
-            <ImportDialog onImport={handleImport} />
+            <ConnectSheetsBar onConnect={handleImport} />
           </CardContent>
         </Card>
       </div>
@@ -426,7 +417,7 @@ export default function DashboardPage() {
             Fetch Data
           </Button>
 
-          <ImportDialog onImport={handleImport} />
+          <ConnectSheetsBar onConnect={handleImport} />
 
           <Button
             variant="outline"
@@ -446,7 +437,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-gradient-to-br from-emerald-900/50 to-emerald-800/30 border-emerald-700/50">
           <CardContent className="p-6">

@@ -59,7 +59,7 @@ let importedPerformanceData: PerformanceData[] = [];
 // Google Sheets configuration
 export interface GoogleSheetsConfig {
   spreadsheetId: string;
-  apiKey: string;
+  apiKey?: string;
   ranges: {
     recruiters: string;
     candidates: string;
