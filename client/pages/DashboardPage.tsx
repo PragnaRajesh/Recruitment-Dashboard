@@ -205,8 +205,8 @@ export default function DashboardPage() {
     } catch (error: any) {
       // Do NOT attempt any client-side fetch or published fallbacks here. Rely on server-side import/polling.
       console.error('Server import failed:', error);
-      // Inform the user minimally
-      alert('Import failed on the server. If you saved the config the server will retry automatically. Check server logs for details.');
+      const msg = (error && error.message) || String(error) || 'Import failed on the server';
+      alert(`Import failed: ${msg}. If you saved the config the server will retry automatically.`);
     } finally {
       setIsImporting(false);
     }
@@ -354,6 +354,23 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-3">
             <ConnectSheetsBar onConnect={handleImport} />
+            <Button className="bg-slate-700 hover:bg-slate-600" onClick={async () => {
+              setIsImporting(true);
+              try {
+                const res = await fetch('/api/load-sample', { method: 'POST' });
+                if (!res || !res.ok) throw new Error('Sample load failed');
+                await fetchData();
+                alert('Sample data loaded');
+              } catch (err) {
+                console.error('Load sample failed', err);
+                alert('Failed to load sample data');
+              } finally {
+                setIsImporting(false);
+              }
+            }}>
+              <Download className="w-4 h-4 mr-2" />
+              Load sample data
+            </Button>
           </div>
         </div>
 

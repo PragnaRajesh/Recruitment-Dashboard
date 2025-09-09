@@ -387,8 +387,8 @@ export default function CandidatesPage() {
             </SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700">
               <SelectItem value="all">All Recruiters</SelectItem>
-              {recruiters.map((recruiter) => (
-                <SelectItem key={recruiter} value={recruiter}>
+              {recruiters.map((recruiter, i) => (
+                <SelectItem key={`${String(recruiter ?? 'unknown')}-${i}`} value={recruiter}>
                   {recruiter}
                 </SelectItem>
               ))}

@@ -126,17 +126,20 @@ function parsePerformance(response: any) {
 export async function importSheetsAndSave(config: GoogleSheetsConfig) {
   const { spreadsheetId, apiKey, ranges } = config;
 
-  const [rRes, cRes, clientsRes, perfRes] = await Promise.all([
-    fetchSheet(spreadsheetId, ranges.recruiters, apiKey),
-    fetchSheet(spreadsheetId, ranges.candidates, apiKey),
-    fetchSheet(spreadsheetId, ranges.clients, apiKey),
-    fetchSheet(spreadsheetId, ranges.performance, apiKey),
+  const results = await Promise.allSettled([
+    fetchSheet(spreadsheetId, ranges.recruiters, apiKey).catch((e) => { throw new Error(`Recruiters fetch failed: ${e?.message || e}`); }),
+    fetchSheet(spreadsheetId, ranges.candidates, apiKey).catch((e) => { throw new Error(`Candidates fetch failed: ${e?.message || e}`); }),
+    fetchSheet(spreadsheetId, ranges.clients, apiKey).catch((e) => { throw new Error(`Clients fetch failed: ${e?.message || e}`); }),
+    fetchSheet(spreadsheetId, ranges.performance, apiKey).catch((e) => { throw new Error(`Performance fetch failed: ${e?.message || e}`); }),
   ]);
 
-  const recruiters = parseRecruiters(rRes);
-  const candidates = parseCandidates(cRes);
-  const clients = parseClients(clientsRes);
-  const performance = parsePerformance(perfRes);
+  const [rRes, cRes, clientsRes, perfRes] = results.map((r) => (r.status === 'fulfilled' ? (r.value as any) : null));
+
+  // Parse each sheet if present, otherwise use empty arrays
+  const recruiters = rRes ? parseRecruiters(rRes) : [];
+  const candidates = cRes ? parseCandidates(cRes) : [];
+  const clients = clientsRes ? parseClients(clientsRes) : [];
+  const performance = perfRes ? parsePerformance(perfRes) : [];
 
   await Recruiter.deleteMany({});
   await Candidate.deleteMany({});

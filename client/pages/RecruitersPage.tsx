@@ -299,8 +299,8 @@ export default function RecruitersPage() {
             </SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700">
               <SelectItem value="all">All Departments</SelectItem>
-              {departments.map((dept) => (
-                <SelectItem key={dept} value={dept}>
+              {departments.map((dept, i) => (
+                <SelectItem key={`${String(dept ?? 'dept')}-${i}`} value={dept}>
                   {dept}
                 </SelectItem>
               ))}
@@ -313,8 +313,8 @@ export default function RecruitersPage() {
             </SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700">
               <SelectItem value="all">All Locations</SelectItem>
-              {locations.map((location) => (
-                <SelectItem key={location} value={location}>
+              {locations.map((location, i) => (
+                <SelectItem key={`${String(location ?? 'loc')}-${i}`} value={location}>
                   {location}
                 </SelectItem>
               ))}

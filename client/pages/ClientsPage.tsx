@@ -326,8 +326,8 @@ export default function ClientsPage() {
             </SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700">
               <SelectItem value="all">All Industries</SelectItem>
-              {industries.map((industry) => (
-                <SelectItem key={industry} value={industry}>
+              {industries.map((industry, i) => (
+                <SelectItem key={`${String(industry ?? 'industry')}-${i}`} value={industry}>
                   {industry}
                 </SelectItem>
               ))}
@@ -340,8 +340,8 @@ export default function ClientsPage() {
             </SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700">
               <SelectItem value="all">All Locations</SelectItem>
-              {locations.map((location) => (
-                <SelectItem key={location} value={location}>
+              {locations.map((location, i) => (
+                <SelectItem key={`${String(location ?? 'location')}-${i}`} value={location}>
                   {location}
                 </SelectItem>
               ))}

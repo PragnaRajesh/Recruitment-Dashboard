@@ -27,6 +27,15 @@ export function createServer() {
   app.post('/api/save-sheets-config', handleSaveConfig);
   app.get('/api/sheets-configs', handleGetConfigs);
 
+  // Sample data loader
+  app.post('/api/load-sample', (req, res) => {
+    // dynamic import handler to avoid circular requires
+    import('./routes/sheets').then((mod) => mod.handleLoadSample(req, res)).catch((err) => {
+      console.error('Load sample route error', err);
+      res.status(500).json({ error: err?.message || 'Load sample failed' });
+    });
+  });
+
   // Maintenance: clear all recruitment data and sheet configs
   app.post('/api/clear-data', handleClearData);
 
