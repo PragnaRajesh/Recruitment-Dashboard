@@ -1,5 +1,6 @@
 import { SheetsConfig } from '../models';
 import { importSheetsAndSave } from './sheetsService';
+import { SheetsConfig } from '../models';
 
 type ConfigDoc = any;
 

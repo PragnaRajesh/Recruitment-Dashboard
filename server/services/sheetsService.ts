@@ -61,66 +61,103 @@ async function fetchSheet(spreadsheetId: string, range: string, apiKey?: string)
 
 function parseRecruiters(response: any) {
   if (!response.values || response.values.length < 2) return [];
+  const header = (response.values[0] as any[]).map((h) => String(h ?? '').trim().toLowerCase());
   const rows = response.values.slice(1);
-  return rows.map((row: any[]) => ({
-    name: row[0] || '',
-    email: row[1] || '',
-    phone: row[2] || '',
-    department: row[3] || '',
-    territory: row[4] || '',
-    hired: parseInt(row[5]) || 0,
-    joinDate: row[6] || '',
-    status: (row[7] as any) || 'active',
-    trend: (row[8] as any) || 'up',
-    location: row[9] || '',
-  }));
+  const parseNum = (v?: string) => (v ? Number(String(v).replace(/[^0-9.-]+/g, '')) || 0 : 0);
+  return rows.map((row: any[]) => {
+    const byName: Record<string, string> = {};
+    header.forEach((h, i) => (byName[h] = row[i] !== undefined ? String(row[i]) : ''));
+    return {
+      name: byName['name'] || byName['full name'] || byName['recruiter'] || (row[0] || ''),
+      email: byName['email'] || byName['email id'] || (row[1] || ''),
+      phone: byName['phone'] || byName['contact number'] || (row[2] || ''),
+      department: byName['department'] || (row[3] || ''),
+      territory: byName['territory'] || byName['locations'] || (row[4] || ''),
+      hired: parseNum(byName['hired'] || byName['total hired'] || byName['hires'] || String(row[5] || '0')),
+      joinDate: byName['joindate'] || byName['join date'] || byName['start date'] || byName['doj'] || (row[6] || ''),
+      reportingManager: byName['reporting manager'] || byName['reportingmanager'] || '',
+      remarks: byName['remarks'] || '',
+      backendCallingsRemarks: byName['backend callings remarks'] || byName['backendcallingsremarks'] || '',
+      recruiterBackendCallings: byName['recruiter backend callings'] || byName['recruiterbackendcallings'] || '',
+      status: (byName['status'] as any) || ((row[7] as any) || 'active'),
+      trend: (byName['trend'] as any) || ((row[8] as any) || 'up'),
+      location: byName['location'] || (row[9] || ''),
+    };
+  });
 }
 
 function parseCandidates(response: any) {
   if (!response.values || response.values.length < 2) return [];
+  const header = (response.values[0] as any[]).map((h) => String(h ?? '').trim().toLowerCase());
   const rows = response.values.slice(1);
-  return rows.map((row: any[]) => ({
-    name: row[0] || '',
-    email: row[1] || '',
-    phone: row[2] || '',
-    position: row[3] || '',
-    experience: row[4] || '',
-    skills: row[5] ? row[5].split(',').map((s: string) => s.trim()) : [],
-    status: (row[6] as any) || 'pending',
-    salary: parseInt(row[7]) || 0,
-    recruiter: row[8] || '',
-    client: row[9] || '',
-    appliedDate: row[10] || '',
-    location: row[11] || '',
-  }));
+  const parseNum = (v?: string) => (v ? Number(String(v).replace(/[^0-9.-]+/g, '')) || 0 : 0);
+  return rows.map((row: any[]) => {
+    const byName: Record<string, string> = {};
+    header.forEach((h, i) => (byName[h] = row[i] !== undefined ? String(row[i]) : ''));
+    const skills = (byName['skills'] || String(row[5] || '')).split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
+    return {
+      name: byName['name'] || (row[0] || ''),
+      email: byName['email'] || byName['email id'] || (row[1] || ''),
+      phone: byName['phone'] || byName['contact number'] || (row[2] || ''),
+      position: byName['position'] || byName['role'] || (row[3] || ''),
+      experience: byName['experience'] || (row[4] || ''),
+      skills,
+      status: (byName['status'] as any) || ((row[6] as any) || 'pending'),
+      salary: parseNum(byName['salary'] || byName['salary details'] || String(row[7] || '0')),
+      recruiter: byName['recruiter'] || (row[8] || ''),
+      reportingManager: byName['reporting manager'] || '',
+      client: byName['client'] || (row[9] || ''),
+      appliedDate: byName['applieddate'] || byName['applied date'] || byName['doj'] || (row[10] || ''),
+      doj: byName['doj'] || '',
+      salaryDetails: byName['salary details'] || '',
+      location: byName['location'] || (row[11] || ''),
+      remarks: byName['remarks'] || '',
+      backendCallingsRemarks: byName['backend callings remarks'] || '',
+    };
+  });
 }
 
 function parseClients(response: any) {
   if (!response.values || response.values.length < 2) return [];
+  const header = (response.values[0] as any[]).map((h) => String(h ?? '').trim().toLowerCase());
   const rows = response.values.slice(1);
-  return rows.map((row: any[]) => ({
-    name: row[0] || '',
-    company: row[1] || '',
-    email: row[2] || '',
-    phone: row[3] || '',
-    industry: row[4] || '',
-    totalHired: parseInt(row[5]) || 0,
-    avgDaysToFill: parseInt(row[6]) || 0,
-    status: (row[7] as any) || 'active',
-    location: row[8] || '',
-    lastActivity: row[9] || '',
-  }));
+  const parseNum = (v?: string) => (v ? Number(String(v).replace(/[^0-9.-]+/g, '')) || 0 : 0);
+  return rows.map((row: any[]) => {
+    const byName: Record<string, string> = {};
+    header.forEach((h, i) => (byName[h] = row[i] !== undefined ? String(row[i]) : ''));
+    return {
+      name: byName['name'] || (row[0] || ''),
+      company: byName['company'] || (row[1] || ''),
+      email: byName['email'] || byName['email id'] || (row[2] || ''),
+      phone: byName['phone'] || byName['contact number'] || (row[3] || ''),
+      industry: byName['industry'] || (row[4] || ''),
+      totalHired: parseNum(byName['total hired'] || byName['totalhired'] || byName['hires'] || String(row[5] || '0')),
+      avgDaysToFill: parseNum(byName['avg daystofill'] || byName['avgdays'] || String(row[6] || '0')),
+      status: (byName['status'] as any) || ((row[7] as any) || 'active'),
+      location: byName['location'] || byName['locations'] || (row[8] || ''),
+      contactNumber: byName['contact number'] || '',
+      lastActivity: byName['lastactivity'] || byName['last activity'] || (row[9] || ''),
+      remarks: byName['remarks'] || '',
+      backendCallingsRemarks: byName['backend callings remarks'] || '',
+    };
+  });
 }
 
 function parsePerformance(response: any) {
   if (!response.values || response.values.length < 2) return [];
+  const header = (response.values[0] as any[]).map((h) => String(h ?? '').trim().toLowerCase());
   const rows = response.values.slice(1);
-  return rows.map((row: any[]) => ({
-    month: row[0] || '',
-    recruiters: parseInt(row[1]) || 0,
-    hired: parseInt(row[2]) || 0,
-    target: parseInt(row[3]) || 0,
-  }));
+  const parseNum = (v?: string) => (v ? Number(String(v).replace(/[^0-9.-]+/g, '')) || 0 : 0);
+  return rows.map((row: any[]) => {
+    const byName: Record<string, string> = {};
+    header.forEach((h, i) => (byName[h] = row[i] !== undefined ? String(row[i]) : ''));
+    return {
+      month: byName['month'] || byName['date'] || (row[0] || ''),
+      recruiters: parseNum(byName['recruiters'] || String(row[1] || '0')),
+      hired: parseNum(byName['hired'] || String(row[2] || '0')),
+      target: parseNum(byName['target'] || String(row[3] || '0')),
+    };
+  });
 }
 
 export async function importSheetsAndSave(config: GoogleSheetsConfig) {
@@ -135,21 +172,79 @@ export async function importSheetsAndSave(config: GoogleSheetsConfig) {
 
   const [rRes, cRes, clientsRes, perfRes] = results.map((r) => (r.status === 'fulfilled' ? (r.value as any) : null));
 
-  // Parse each sheet if present, otherwise use empty arrays
-  const recruiters = rRes ? parseRecruiters(rRes) : [];
-  const candidates = cRes ? parseCandidates(cRes) : [];
-  const clients = clientsRes ? parseClients(clientsRes) : [];
-  const performance = perfRes ? parsePerformance(perfRes) : [];
+  // Helper to infer sheet type based on header row
+  const inferType = (resp: any) => {
+    if (!resp || !resp.values || resp.values.length === 0) return null;
+    const header = (resp.values[0] as any[]).map((h) => String(h ?? '').trim().toLowerCase());
+    const has = (keys: string[]) => keys.some((k) => header.includes(k));
+    if (has(['position', 'role', 'applieddate', 'applied date', 'salary', 'doj', 'client'])) return 'candidates';
+    if (has(['company', 'industry', 'total hired', 'avgdaystofill', 'last activity'])) return 'clients';
+    if (has(['hired', 'territory', 'trend', 'join date', 'joindate', 'department'])) return 'recruiters';
+    if (has(['month', 'target', 'hired'])) return 'performance';
+    return null;
+  };
 
-  await Recruiter.deleteMany({});
-  await Candidate.deleteMany({});
-  await Client.deleteMany({});
-  await Performance.deleteMany({});
+  let recruiters: any[] = [];
+  let candidates: any[] = [];
+  let clients: any[] = [];
+  let performance: any[] = [];
 
-  await Recruiter.insertMany(recruiters.map((r: any) => ({ ...r })));
-  await Candidate.insertMany(candidates.map((c: any) => ({ ...c })));
-  await Client.insertMany(clients.map((c: any) => ({ ...c })));
-  await Performance.insertMany(performance.map((p: any) => ({ ...p })));
+  // Infer types and parse accordingly — handle cases where tabs may contain different data than expected
+  try {
+    const rType = inferType(rRes);
+    const cType = inferType(cRes);
+    const clType = inferType(clientsRes);
+    const pType = inferType(perfRes);
+
+    if (rRes) {
+      if (rType === 'candidates') candidates = parseCandidates(rRes);
+      else if (rType === 'clients') clients = parseClients(rRes);
+      else if (rType === 'performance') performance = parsePerformance(rRes);
+      else recruiters = parseRecruiters(rRes);
+    }
+
+    if (cRes) {
+      if (cType === 'recruiters') recruiters = parseRecruiters(cRes);
+      else if (cType === 'clients') clients = parseClients(cRes);
+      else if (cType === 'performance') performance = parsePerformance(cRes);
+      else candidates = parseCandidates(cRes);
+    }
+
+    if (clientsRes) {
+      if (clType === 'recruiters') recruiters = parseRecruiters(clientsRes);
+      else if (clType === 'candidates') candidates = parseCandidates(clientsRes);
+      else if (clType === 'performance') performance = parsePerformance(clientsRes);
+      else clients = parseClients(clientsRes);
+    }
+
+    if (perfRes) {
+      if (pType === 'recruiters') recruiters = parseRecruiters(perfRes);
+      else if (pType === 'clients') clients = parseClients(perfRes);
+      else if (pType === 'candidates') candidates = parseCandidates(perfRes);
+      else performance = parsePerformance(perfRes);
+    }
+  } catch (e) {
+    // fallback to best-effort parsing
+    recruiters = rRes ? parseRecruiters(rRes) : [];
+    candidates = cRes ? parseCandidates(cRes) : [];
+    clients = clientsRes ? parseClients(clientsRes) : [];
+    performance = perfRes ? parsePerformance(perfRes) : [];
+  }
+
+  // Best-effort DB persistence; return data even if DB is unavailable
+  try {
+    await Recruiter.deleteMany({});
+    await Candidate.deleteMany({});
+    await Client.deleteMany({});
+    await Performance.deleteMany({});
+
+    if (recruiters.length) await Recruiter.insertMany(recruiters.map((r: any) => ({ ...r })));
+    if (candidates.length) await Candidate.insertMany(candidates.map((c: any) => ({ ...c })));
+    if (clients.length) await Client.insertMany(clients.map((c: any) => ({ ...c })));
+    if (performance.length) await Performance.insertMany(performance.map((p: any) => ({ ...p })));
+  } catch (e) {
+    console.warn('DB write failed, returning data without persisting', (e as any)?.message ?? e);
+  }
 
   return { recruiters, candidates, clients, performance };
 }
@@ -320,21 +415,68 @@ export async function importPublishedAndSave(spreadsheetId: string, ranges: { re
   const clientRows = clientCsv ? parseCsvToObjects(clientCsv) : [];
   const perfRows = perfCsv ? parseCsvToObjects(perfCsv) : [];
 
-  const recruiters = mapRecruiters(recRows);
-  const candidates = mapCandidates(candRows);
-  const clients = mapClients(clientRows);
-  const performance = mapPerformance(perfRows);
+  const inferRowsType = (rows: Record<string,string>[]) => {
+    if (!rows || rows.length === 0) return null;
+    const header = Object.keys(rows[0]).map(h => h.trim().toLowerCase());
+    const has = (keys: string[]) => keys.some(k => header.includes(k));
+    if (has(['position','role','applieddate','applied date','salary','doj','client'])) return 'candidates';
+    if (has(['company','industry','total hired','avg daystofill','last activity'])) return 'clients';
+    if (has(['hired','territory','trend','join date','joindate','department'])) return 'recruiters';
+    if (has(['month','target','hired'])) return 'performance';
+    return null;
+  };
 
-  // Persist to DB (replace existing data)
-  await Recruiter.deleteMany({});
-  await Candidate.deleteMany({});
-  await Client.deleteMany({});
-  await Performance.deleteMany({});
+  let recruiters: any[] = [];
+  let candidates: any[] = [];
+  let clients: any[] = [];
+  let performance: any[] = [];
 
-  if (recruiters.length) await Recruiter.insertMany(recruiters.map((r: any) => ({ ...r })));
-  if (candidates.length) await Candidate.insertMany(candidates.map((c: any) => ({ ...c })));
-  if (clients.length) await Client.insertMany(clients.map((c: any) => ({ ...c })));
-  if (performance.length) await Performance.insertMany(performance.map((p: any) => ({ ...p })));
+  try {
+    const tRec = inferRowsType(recRows);
+    const tCand = inferRowsType(candRows);
+    const tClient = inferRowsType(clientRows);
+    const tPerf = inferRowsType(perfRows);
+
+    if (tRec === 'candidates') candidates = mapCandidates(recRows);
+    else if (tRec === 'clients') clients = mapClients(recRows);
+    else if (tRec === 'performance') performance = mapPerformance(recRows);
+    else recruiters = mapRecruiters(recRows);
+
+    if (tCand === 'recruiters') recruiters = mapRecruiters(candRows);
+    else if (tCand === 'clients') clients = mapClients(candRows);
+    else if (tCand === 'performance') performance = mapPerformance(candRows);
+    else candidates = mapCandidates(candRows);
+
+    if (tClient === 'recruiters') recruiters = mapRecruiters(clientRows);
+    else if (tClient === 'candidates') candidates = mapCandidates(clientRows);
+    else if (tClient === 'performance') performance = mapPerformance(clientRows);
+    else clients = mapClients(clientRows);
+
+    if (tPerf === 'recruiters') recruiters = mapRecruiters(perfRows);
+    else if (tPerf === 'clients') clients = mapClients(perfRows);
+    else if (tPerf === 'candidates') candidates = mapCandidates(perfRows);
+    else performance = mapPerformance(perfRows);
+  } catch (e) {
+    recruiters = mapRecruiters(recRows);
+    candidates = mapCandidates(candRows);
+    clients = mapClients(clientRows);
+    performance = mapPerformance(perfRows);
+  }
+
+  // Persist to DB (best-effort); return data even if DB is unavailable
+  try {
+    await Recruiter.deleteMany({});
+    await Candidate.deleteMany({});
+    await Client.deleteMany({});
+    await Performance.deleteMany({});
+
+    if (recruiters.length) await Recruiter.insertMany(recruiters.map((r: any) => ({ ...r })));
+    if (candidates.length) await Candidate.insertMany(candidates.map((c: any) => ({ ...c })));
+    if (clients.length) await Client.insertMany(clients.map((c: any) => ({ ...c })));
+    if (performance.length) await Performance.insertMany(performance.map((p: any) => ({ ...p })));
+  } catch (e) {
+    console.warn('DB write failed (published import), returning data without persisting', (e as any)?.message ?? e);
+  }
 
   return { recruiters, candidates, clients, performance };
 }

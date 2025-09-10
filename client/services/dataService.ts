@@ -7,7 +7,11 @@ export interface RecruiterData {
   department: string;
   territory: string;
   hired: number;
-  joinDate: string;
+  joinDate?: string;
+  reportingManager?: string;
+  remarks?: string;
+  backendCallingsRemarks?: string;
+  recruiterBackendCallings?: string;
   status: "active" | "inactive" | "pending";
   trend: "up" | "down";
   location: string;
@@ -24,7 +28,10 @@ export interface ClientData {
   avgDaysToFill: number;
   status: "active" | "pending" | "inactive";
   location: string;
+  contactNumber?: string;
   lastActivity: string;
+  remarks?: string;
+  backendCallingsRemarks?: string;
 }
 
 export interface CandidateData {
@@ -37,10 +44,15 @@ export interface CandidateData {
   skills: string[];
   status: "hired" | "interview" | "pending" | "rejected";
   salary: number;
+  salaryDetails?: string;
   recruiter: string;
+  reportingManager?: string;
   client: string;
-  appliedDate: string;
+  appliedDate?: string;
+  doj?: string;
   location: string;
+  remarks?: string;
+  backendCallingsRemarks?: string;
 }
 
 export interface PerformanceData {
@@ -183,6 +195,11 @@ class DataService {
         text: async () => '',
       } as unknown as Response;
     }
+  }
+
+  // Public wrapper for request so other modules can call the API without accessing a private method
+  async requestApi(path: string, options?: RequestInit) {
+    return this.request(path, options);
   }
 
   // Set Google Sheets configuration (client stores it temporarily)
@@ -601,9 +618,20 @@ class DataService {
     return { recruiters: importedRecruiters, candidates: importedCandidates, clients: importedClients, performance: importedPerformanceData };
   }
 
-  async fetchRecruiters(): Promise<RecruiterData[]> {
+  private buildQuery(filters?: { month?: string; year?: string; recruiter?: string }) {
+    if (!filters) return '';
+    const params = new URLSearchParams();
+    if (filters.month) params.set('month', filters.month);
+    if (filters.year) params.set('year', filters.year);
+    if (filters.recruiter) params.set('recruiter', filters.recruiter);
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+  }
+
+  async fetchRecruiters(filters?: { month?: string; year?: string; recruiter?: string }): Promise<RecruiterData[]> {
     try {
-      const res = await this.request('/data');
+      const qs = this.buildQuery(filters);
+      const res = await this.request(`/data${qs}`);
       if (!res || !res.ok) return importedRecruiters;
       const json = await res.json();
       importedRecruiters = json.recruiters || [];
@@ -614,9 +642,10 @@ class DataService {
     }
   }
 
-  async fetchClients(): Promise<ClientData[]> {
+  async fetchClients(filters?: { month?: string; year?: string; recruiter?: string }): Promise<ClientData[]> {
     try {
-      const res = await this.request('/data');
+      const qs = this.buildQuery(filters);
+      const res = await this.request(`/data${qs}`);
       if (!res || !res.ok) return importedClients;
       const json = await res.json();
       importedClients = json.clients || [];
@@ -626,9 +655,10 @@ class DataService {
     }
   }
 
-  async fetchCandidates(): Promise<CandidateData[]> {
+  async fetchCandidates(filters?: { month?: string; year?: string; recruiter?: string }): Promise<CandidateData[]> {
     try {
-      const res = await this.request('/data');
+      const qs = this.buildQuery(filters);
+      const res = await this.request(`/data${qs}`);
       if (!res || !res.ok) return importedCandidates;
       const json = await res.json();
       importedCandidates = json.candidates || [];
@@ -638,9 +668,10 @@ class DataService {
     }
   }
 
-  async fetchPerformanceData(): Promise<PerformanceData[]> {
+  async fetchPerformanceData(filters?: { month?: string; year?: string; recruiter?: string }): Promise<PerformanceData[]> {
     try {
-      const res = await this.request('/data');
+      const qs = this.buildQuery(filters);
+      const res = await this.request(`/data${qs}`);
       if (!res || !res.ok) return importedPerformanceData;
       const json = await res.json();
       importedPerformanceData = json.performance || [];

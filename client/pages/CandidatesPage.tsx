@@ -22,6 +22,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { dataService, type CandidateData } from "@/services/dataService";
+import { useGlobalContext } from "@/context/GlobalContext";
 
 const columns: Column[] = [
   {
@@ -150,6 +151,30 @@ const columns: Column[] = [
       </span>
     ),
   },
+  {
+    key: "reportingManager",
+    label: "Reporting Manager",
+    sortable: true,
+    render: (value) => <span className="text-slate-300">{value || 'N/A'}</span>,
+  },
+  {
+    key: "salaryDetails",
+    label: "Salary Details",
+    sortable: false,
+    render: (value) => <span className="text-slate-400 text-sm">{value || '-'}</span>,
+  },
+  {
+    key: "remarks",
+    label: "Remarks",
+    sortable: false,
+    render: (value) => <span className="text-slate-400 text-sm">{value || '-'}</span>,
+  },
+  {
+    key: "backendCallingsRemarks",
+    label: "Backend Callings Remarks",
+    sortable: false,
+    render: (value) => <span className="text-slate-400 text-sm">{value || '-'}</span>,
+  },
 ];
 
 export default function CandidatesPage() {
@@ -160,16 +185,26 @@ export default function CandidatesPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedRecruiter, setSelectedRecruiter] = useState<string>("all");
   const [hasData, setHasData] = useState(false);
+  const { selectedRecruiter: globalRecruiter } = useGlobalContext();
 
-  // Fetch data on component mount
+  // Fetch data on component mount only if data was previously imported/persisted
   useEffect(() => {
-    fetchCandidates();
+    if (dataService.hasImportedData()) {
+      fetchCandidates();
+    }
   }, []);
+
+  const { selectedMonth, selectedYear, selectedRecruiter: globalRecruiterContext } = useGlobalContext();
 
   const fetchCandidates = async () => {
     setIsLoading(true);
     try {
-      const data = await dataService.fetchCandidates();
+      const filters: any = {};
+      if (selectedMonth) filters.month = selectedMonth;
+      if (selectedYear) filters.year = selectedYear;
+      if (globalRecruiterContext && globalRecruiterContext !== 'all') filters.recruiter = globalRecruiterContext;
+
+      const data = await dataService.fetchCandidates(filters);
       setCandidatesData(data);
       setHasData(dataService.hasImportedData());
     } catch (error) {
@@ -179,13 +214,15 @@ export default function CandidatesPage() {
     }
   };
 
-  // Filter data based on dropdowns
+  // Filter data based on dropdowns and global recruiter selection
   const filteredData = candidatesData.filter((candidate) => {
     const statusMatch =
       selectedStatus === "all" || candidate.status === selectedStatus;
-    const recruiterMatch =
+    const recruiterMatchLocal =
       selectedRecruiter === "all" || candidate.recruiter === selectedRecruiter;
-    return statusMatch && recruiterMatch;
+    const recruiterMatchGlobal =
+      !globalRecruiter || globalRecruiter === "all" || candidate.recruiter === globalRecruiter;
+    return statusMatch && recruiterMatchLocal && recruiterMatchGlobal;
   });
 
   const handleRowClick = (candidate: any) => {

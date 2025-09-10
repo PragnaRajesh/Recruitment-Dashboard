@@ -21,6 +21,10 @@ export const RecruiterSchema = new Schema<IRecruiter>({
   territory: String,
   hired: { type: Number, default: 0 },
   joinDate: String,
+  reportingManager: String,
+  remarks: String,
+  backendCallingsRemarks: String,
+  recruiterBackendCallings: String,
   status: { type: String, enum: ['active', 'inactive', 'pending'], default: 'active' },
   trend: { type: String, enum: ['up', 'down'], default: 'up' },
   location: String,
@@ -51,9 +55,14 @@ export const CandidateSchema = new Schema<ICandidate>({
   status: { type: String, enum: ['hired','interview','pending','rejected'], default: 'pending' },
   salary: Number,
   recruiter: String,
+  reportingManager: String,
   client: String,
   appliedDate: String,
+  doj: String,
+  salaryDetails: String,
   location: String,
+  remarks: String,
+  backendCallingsRemarks: String,
 });
 
 export interface IClient extends Document {
@@ -79,7 +88,10 @@ export const ClientSchema = new Schema<IClient>({
   avgDaysToFill: Number,
   status: { type: String, enum: ['active','pending','inactive'], default: 'active' },
   location: String,
+  contactNumber: String,
   lastActivity: String,
+  remarks: String,
+  backendCallingsRemarks: String,
 });
 
 export interface IPerformance extends Document {

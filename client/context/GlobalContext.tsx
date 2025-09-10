@@ -5,6 +5,10 @@ interface GlobalState {
   setSelectedRecruiter: (recruiter: string) => void;
   hasImportedData: boolean;
   setHasImportedData: (hasData: boolean) => void;
+  selectedMonth?: string;
+  setSelectedMonth: (m?: string) => void;
+  selectedYear?: string;
+  setSelectedYear: (y?: string) => void;
 }
 
 const GlobalContext = createContext<GlobalState | undefined>(undefined);
@@ -20,12 +24,18 @@ export const useGlobalContext = () => {
 export const GlobalProvider = ({ children }: { children: ReactNode }) => {
   const [selectedRecruiter, setSelectedRecruiter] = useState<string>("all");
   const [hasImportedData, setHasImportedData] = useState<boolean>(false);
+  const [selectedMonth, setSelectedMonth] = useState<string | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
 
   const value = {
     selectedRecruiter,
     setSelectedRecruiter,
     hasImportedData,
     setHasImportedData,
+    selectedMonth,
+    setSelectedMonth,
+    selectedYear,
+    setSelectedYear,
   };
 
   return (

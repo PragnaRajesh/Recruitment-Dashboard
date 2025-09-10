@@ -10,11 +10,34 @@ const SelectGroup = SelectPrimitive.Group;
 
 const SelectValue = SelectPrimitive.Value;
 
+const normalize = (children: React.ReactNode) => {
+  // Helper kept for backward compatibility but not used for key enforcement.
+  const arr = React.Children.toArray(children);
+  if (arr.length === 0) return null;
+  if (arr.length === 1) return arr[0] as React.ReactNode;
+  return <>{arr}</>;
+};
+
+const ensureKeyedChildren = (children: React.ReactNode, prefix = "c") => {
+  const arr = React.Children.toArray(children);
+  return arr.map((c, i) => {
+    if (React.isValidElement(c)) {
+      if (c.key != null) return c;
+      return React.cloneElement(c, { key: `${prefix}-${i}` });
+    }
+    return (
+      <span key={`${prefix}-text-${i}`} className="select-child-wrapper">
+        {c as any}
+      </span>
+    );
+  });
+};
+
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
 >(({ className, children, ...props }, ref) => {
-  const items = React.Children.toArray(children);
+  const items = ensureKeyedChildren(children, 'trigger');
   return (
     <SelectPrimitive.Trigger
       ref={ref}
@@ -24,7 +47,7 @@ const SelectTrigger = React.forwardRef<
       )}
       {...props}
     >
-      {items}
+      <div className="flex-1 min-w-0">{items}</div>
       <SelectPrimitive.Icon asChild>
         <ChevronDown className="h-4 w-4 opacity-50" />
       </SelectPrimitive.Icon>
@@ -72,9 +95,8 @@ const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", ...props }, ref) => {
-  // Ensure every child element has a stable key to avoid React warnings
-  // Use React.Children.toArray to ensure stable keys for children
-  const items = React.Children.toArray(children);
+  // Ensure children have keys
+  const items = ensureKeyedChildren(children, 'content');
 
   return (
     <SelectPrimitive.Portal>
@@ -97,7 +119,7 @@ const SelectContent = React.forwardRef<
               "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
           )}
         >
-          {items}
+          <div>{items}</div>
         </SelectPrimitive.Viewport>
         <SelectScrollDownButton />
       </SelectPrimitive.Content>
@@ -121,24 +143,44 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName;
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Item
-    ref={ref}
-    className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className,
-    )}
-    {...props}
-  >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-      <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4" />
-      </SelectPrimitive.ItemIndicator>
-    </span>
+>(({ className, children, ...props }, ref) => {
+  // Ensure value prop is not an empty string (Radix requires non-empty values)
+  const incomingValue = (props as any).value;
+  let valueToUse = incomingValue;
+  if (!valueToUse || valueToUse === "") {
+    // Try to derive from children when possible
+    if (typeof children === "string" && children.trim() !== "") {
+      valueToUse = children.trim();
+    } else {
+      // Nothing usable — skip rendering this item to avoid Radix error
+      // Log a warning for debugging
+      // eslint-disable-next-line no-console
+      console.warn("SelectItem skipped because value is empty and children could not provide a value.", props, children);
+      return null;
+    }
+  }
 
-    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-  </SelectPrimitive.Item>
-));
+  const itemProps = { ...(props as any), value: valueToUse } as React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>;
+
+  return (
+    <SelectPrimitive.Item
+      ref={ref}
+      className={cn(
+        "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        className,
+      )}
+      {...itemProps}
+    >
+      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        <SelectPrimitive.ItemIndicator>
+          <Check className="h-4 w-4" />
+        </SelectPrimitive.ItemIndicator>
+      </span>
+
+      <SelectPrimitive.ItemText>{ensureKeyedChildren(children, 'item')}</SelectPrimitive.ItemText>
+    </SelectPrimitive.Item>
+  );
+});
 SelectItem.displayName = SelectPrimitive.Item.displayName;
 
 const SelectSeparator = React.forwardRef<

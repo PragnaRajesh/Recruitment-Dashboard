@@ -21,6 +21,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { dataService, type ClientData } from "@/services/dataService";
+import { useGlobalContext } from "@/context/GlobalContext";
 
 const columns: Column[] = [
   {
@@ -112,10 +113,28 @@ const columns: Column[] = [
     ),
   },
   {
+    key: "contactNumber",
+    label: "Contact Number",
+    sortable: false,
+    render: (value) => <span className="text-slate-300">{value || 'N/A'}</span>,
+  },
+  {
     key: "email",
     label: "Email",
     sortable: true,
     render: (value) => <span className="text-slate-400 text-sm">{value}</span>,
+  },
+  {
+    key: "remarks",
+    label: "Remarks",
+    sortable: false,
+    render: (value) => <span className="text-slate-400 text-sm">{value || '-'}</span>,
+  },
+  {
+    key: "backendCallingsRemarks",
+    label: "Backend Callings Remarks",
+    sortable: false,
+    render: (value) => <span className="text-slate-400 text-sm">{value || '-'}</span>,
   },
 ];
 
@@ -129,16 +148,36 @@ export default function ClientsPage() {
   const [selectedIndustry, setSelectedIndustry] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [hasData, setHasData] = useState(false);
+  const [candidateList, setCandidateList] = useState<any[]>([]);
+  const { selectedRecruiter: globalRecruiter } = useGlobalContext();
 
-  // Fetch data on component mount
+  // Fetch data on component mount only if data was previously imported/persisted
   useEffect(() => {
-    fetchClients();
+    if (dataService.hasImportedData()) {
+      fetchClients();
+      // also fetch candidates for cross-filtering
+      (async () => {
+        try {
+          const cands = await dataService.fetchCandidates();
+          setCandidateList(cands);
+        } catch (e) {
+          // ignore
+        }
+      })();
+    }
   }, []);
+
+  const { selectedMonth, selectedYear, selectedRecruiter: globalRecruiterContext } = useGlobalContext();
 
   const fetchClients = async () => {
     setIsLoading(true);
     try {
-      const data = await dataService.fetchClients();
+      const filters: any = {};
+      if (selectedMonth) filters.month = selectedMonth;
+      if (selectedYear) filters.year = selectedYear;
+      if (globalRecruiterContext && globalRecruiterContext !== 'all') filters.recruiter = globalRecruiterContext;
+
+      const data = await dataService.fetchClients(filters);
       setClientsData(data);
       setHasData(dataService.hasImportedData());
     } catch (error) {
@@ -148,12 +187,21 @@ export default function ClientsPage() {
     }
   };
 
-  // Filter data based on dropdowns
+  // Filter data based on dropdowns and global recruiter selection
   const filteredData = clientsData.filter((client) => {
     const industryMatch =
       selectedIndustry === "all" || client.industry === selectedIndustry;
     const locationMatch =
       selectedLocation === "all" || client.location.includes(selectedLocation);
+
+    if (globalRecruiter && globalRecruiter !== 'all') {
+      // only include clients that have at least one candidate associated with the selected recruiter
+      const clientNamesForRecruiter = new Set(
+        candidateList.filter((c) => c.recruiter === globalRecruiter).map((c) => c.client),
+      );
+      if (!clientNamesForRecruiter.has(client.name)) return false;
+    }
+
     return industryMatch && locationMatch;
   });
 

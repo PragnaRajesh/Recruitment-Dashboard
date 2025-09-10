@@ -102,10 +102,58 @@ export const handleImportSheets: RequestHandler = async (req, res) => {
   }
 };
 
-export const handleFetchData: RequestHandler = async (_req, res) => {
+export const handleFetchData: RequestHandler = async (req, res) => {
   try {
-    const data = await fetchAll();
-    return res.status(200).json(data);
+    const month = typeof req.query.month === 'string' ? req.query.month : undefined; // expected YYYY-MM
+    const year = typeof req.query.year === 'string' ? req.query.year : undefined; // expected YYYY
+    const recruiter = typeof req.query.recruiter === 'string' ? req.query.recruiter : undefined;
+
+    // Build queries
+    const perfQuery: any = {};
+    if (month) perfQuery.month = month;
+    else if (year) perfQuery.month = { $regex: `^${year}` };
+
+    let performance: any[] = [];
+    if (Object.keys(perfQuery).length) {
+      performance = await Performance.find(perfQuery).lean();
+    } else {
+      performance = await Performance.find().lean();
+    }
+
+    const recruiterQuery: any = {};
+    if (recruiter && recruiter !== 'all') recruiterQuery.name = recruiter;
+    if (month) recruiterQuery.joinDate = { $regex: `^${month}` };
+    else if (year) recruiterQuery.joinDate = { $regex: `^${year}` };
+    const recruiters = await Recruiter.find(recruiterQuery).lean();
+
+    // Candidates: filter by recruiter and appliedDate/doj
+    const candQuery: any = {};
+    if (recruiter && recruiter !== 'all') candQuery.recruiter = recruiter;
+    if (month) candQuery.$or = [{ appliedDate: { $regex: `^${month}` } }, { doj: { $regex: `^${month}` } }];
+    else if (year) candQuery.$or = [{ appliedDate: { $regex: `^${year}` } }, { doj: { $regex: `^${year}` } }];
+
+    const candidates = Object.keys(candQuery).length ? await Candidate.find(candQuery).lean() : await Candidate.find().lean();
+
+    // Clients: if recruiter filter applied, narrow clients to those referenced by candidates
+    let clients: any[] = [];
+    if (recruiter && recruiter !== 'all') {
+      const clientNames = Array.from(new Set(candidates.map((c: any) => c.client).filter(Boolean)));
+      if (clientNames.length) {
+        const clientQuery: any = { name: { $in: clientNames } };
+        if (month) clientQuery.lastActivity = { $regex: `^${month}` };
+        else if (year) clientQuery.lastActivity = { $regex: `^${year}` };
+        clients = await Client.find(clientQuery).lean();
+      } else {
+        clients = [];
+      }
+    } else {
+      const clientQuery: any = {};
+      if (month) clientQuery.lastActivity = { $regex: `^${month}` };
+      else if (year) clientQuery.lastActivity = { $regex: `^${year}` };
+      clients = Object.keys(clientQuery).length ? await Client.find(clientQuery).lean() : await Client.find().lean();
+    }
+
+    return res.status(200).json({ recruiters, candidates, clients, performance });
   } catch (err: any) {
     console.error('Fetch data error:', err);
     return res.status(500).json({ error: err.message || 'Fetch failed' });

@@ -108,6 +108,18 @@ const columns: Column[] = [
       </span>
     ),
   },
+  {
+    key: "reportingManager",
+    label: "Reporting Manager",
+    sortable: true,
+    render: (value) => <span className="text-slate-300">{value || 'N/A'}</span>,
+  },
+  {
+    key: "remarks",
+    label: "Remarks",
+    sortable: false,
+    render: (value) => <span className="text-slate-400 text-sm">{value || '-'}</span>,
+  },
 ];
 
 export default function RecruitersPage() {
@@ -120,16 +132,26 @@ export default function RecruitersPage() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [hasData, setHasData] = useState(false);
+  const { selectedRecruiter: globalRecruiter } = useGlobalContext();
 
-  // Fetch data on component mount
+  // Fetch data on component mount only if data was previously imported/persisted
   useEffect(() => {
-    fetchRecruiters();
+    if (dataService.hasImportedData()) {
+      fetchRecruiters();
+    }
   }, []);
+
+  const { selectedMonth, selectedYear, selectedRecruiter: globalRecruiterContext } = useGlobalContext();
 
   const fetchRecruiters = async () => {
     setIsLoading(true);
     try {
-      const data = await dataService.fetchRecruiters();
+      const filters: any = {};
+      if (selectedMonth) filters.month = selectedMonth;
+      if (selectedYear) filters.year = selectedYear;
+      if (globalRecruiterContext && globalRecruiterContext !== 'all') filters.recruiter = globalRecruiterContext;
+
+      const data = await dataService.fetchRecruiters(filters);
       setRecruitersData(data);
       setHasData(dataService.hasImportedData());
     } catch (error) {
@@ -139,14 +161,16 @@ export default function RecruitersPage() {
     }
   };
 
-  // Filter data based on dropdowns
+  // Filter data based on dropdowns and global recruiter selection
   const filteredData = recruitersData.filter((recruiter) => {
     const departmentMatch =
       selectedDepartment === "all" ||
       recruiter.department === selectedDepartment;
     const locationMatch =
       selectedLocation === "all" || recruiter.territory === selectedLocation;
-    return departmentMatch && locationMatch;
+    const globalMatch =
+      !globalRecruiter || globalRecruiter === "all" || recruiter.name === globalRecruiter;
+    return departmentMatch && locationMatch && globalMatch;
   });
 
   const handleRowClick = (recruiter: any) => {

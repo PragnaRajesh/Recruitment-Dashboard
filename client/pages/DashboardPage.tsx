@@ -76,9 +76,14 @@ function ConnectSheetsBar({ onConnect }: { onConnect: (config: any) => void }) {
       return;
     }
 
+    // Optional: extract gid for public CSV endpoints
+    const gidMatch = sheetLink.match(/[?&]gid=([0-9]+)/);
+    const gid = gidMatch && gidMatch[1] ? gidMatch[1] : undefined;
+
     const cfg: any = {
       spreadsheetId,
       sheetLink,
+      gid,
       ranges: {
         recruiters: "Recruiters!A:J",
         candidates: "Candidates!A:L",
@@ -105,8 +110,10 @@ function ConnectSheetsBar({ onConnect }: { onConnect: (config: any) => void }) {
       />
 
       <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={connect}>
-        <Upload className="w-4 h-4 mr-2" />
-        Connect
+        <span className="flex items-center gap-2">
+          <Upload className="w-4 h-4" />
+          <span>Connect</span>
+        </span>
       </Button>
     </div>
   );
@@ -118,11 +125,14 @@ export default function DashboardPage() {
     setSelectedRecruiter,
     hasImportedData,
     setHasImportedData,
+    selectedMonth,
+    setSelectedMonth,
+    selectedYear,
+    setSelectedYear,
   } = useGlobalContext();
   const [timeRange, setTimeRange] = useState("30d");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [savedConfigs, setSavedConfigs] = useState<any[]>([]);
   const [recruiters, setRecruiters] = useState<RecruiterData[]>([]);
   const [performanceDataState, setPerformanceDataState] = useState<
     PerformanceData[]
@@ -146,13 +156,23 @@ export default function DashboardPage() {
     }
   }, []);
 
+
   const fetchData = async () => {
     setIsRefreshing(true);
     try {
-      const recruitersData = await dataService.fetchRecruiters();
-      const performanceData = await dataService.fetchPerformanceData();
+      const filters: any = {};
+      if (selectedMonth) filters.month = selectedMonth;
+      if (selectedYear) filters.year = selectedYear;
+      if (selectedRecruiter) filters.recruiter = selectedRecruiter;
+
+      const recruitersData = await dataService.fetchRecruiters(filters);
+      const performanceData = await dataService.fetchPerformanceData(filters);
+      const clientsData = await dataService.fetchClients(filters);
+      const candidatesData = await dataService.fetchCandidates(filters);
+
       setRecruiters(recruitersData);
       setPerformanceDataState(performanceData);
+      // Note: components/pages fetch their own data; we update local caches as well
       const dataImported = dataService.hasImportedData();
       setHasData(dataImported);
       setHasImportedData(dataImported);
@@ -163,79 +183,120 @@ export default function DashboardPage() {
     }
   };
 
-  const handleImport = async (config: GoogleSheetsConfig) => {
+  const handleResync = async () => {
     setIsImporting(true);
-
-    // If user asked to save config, persist it first so the server can poll / auto-refresh even if immediate import fails
-    if ((config as any).saveConfig) {
-      try {
-        await fetch('/api/save-sheets-config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            spreadsheetId: (config as any).spreadsheetId,
-            apiKey: (config as any).apiKey,
-            ranges: config.ranges,
-            autoRefresh: !!(config as any).autoRefresh,
-            refreshIntervalMinutes: Number((config as any).refreshIntervalMinutes) || 60,
-          }),
-        });
-        // refresh saved configs list silently
-        try {
-          const listRes = await fetch('/api/sheets-configs');
-          if (listRes && listRes.ok) {
-            const configs = await listRes.json();
-            setSavedConfigs(configs || []);
-          }
-        } catch (e) {
-          /* ignore */
-        }
-      } catch (e) {
-        console.error('Failed to save sheets config', e);
-        // continue — we still attempt import, server may accept on next poll if corrected
-      }
-    }
-
     try {
-      dataService.setGoogleSheetsConfig(config);
-      await dataService.importFromGoogleSheets();
-      await fetchData();
-      setSelectedRecruiter("all");
-      return;
-    } catch (error: any) {
-      // Do NOT attempt any client-side fetch or published fallbacks here. Rely on server-side import/polling.
-      console.error('Server import failed:', error);
-      const msg = (error && error.message) || String(error) || 'Import failed on the server';
-      alert(`Import failed: ${msg}. If you saved the config the server will retry automatically.`);
+      // fetch saved configs
+      const cfgRes = await dataService.requestApi('/sheets-configs');
+      if (!cfgRes || !cfgRes.ok) throw new Error('No saved config found');
+      const cfgs = await cfgRes.json().catch(() => []);
+      if (!cfgs || cfgs.length === 0) throw new Error('No saved config found');
+      const cfg = cfgs[0];
+      const importRes = await dataService.requestApi('/import-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg),
+      });
+      if (!importRes || !importRes.ok) {
+        const body = await importRes.json().catch(() => ({}));
+        throw new Error(body && body.error ? body.error : 'Import failed');
+      }
+      const data = await importRes.json();
+      setRecruiters(data.recruiters || []);
+      setPerformanceDataState(data.performance || []);
+      // refresh saved configs list (to get updated lastRunAt)
+      // refresh configs metadata (not used in UI)
+      try {
+        const cfgsRes2 = await dataService.requestApi('/sheets-configs');
+        // ignore response
+      } catch (e) {
+        // ignore
+      }
+      // update imported state
+      const dataImported = dataService.hasImportedData();
+      setHasData(dataImported);
+      setHasImportedData(dataImported);
+      
+      alert('Resync completed');
+    } catch (e: any) {
+      console.error('Resync failed', e);
+      alert('Resync failed: ' + (e?.message || e));
     } finally {
       setIsImporting(false);
     }
   };
 
-  // Load saved sheets configs and auto-import if present
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/sheets-configs');
-        if (!res || !res.ok) return;
-        const configs = await res.json().catch(() => []);
-        setSavedConfigs(configs || []);
-        if (configs && configs.length > 0) {
-          const preferred = configs.find((c: any) => c.autoRefresh) || configs[0];
-          if (preferred) {
-            // attempt import using saved config
-            try {
-              await handleImport(preferred as GoogleSheetsConfig);
-            } catch (e) {
-              console.error('Auto import from saved config failed', e);
-            }
+  const handleImport = async (config: GoogleSheetsConfig) => {
+    setIsImporting(true);
+
+    const spreadsheetId = (config as any).spreadsheetId || String((config as any).sheetLink || '').match(/spreadsheets\/d\/([-_a-zA-Z0-9]+)/)?.[1] || '';
+    const gid = (config as any).gid as string | undefined;
+
+    // First, try server import (uses API key or service account and works around CORS).
+    try {
+      if ((config as any).saveConfig) {
+        // Save config so server can auto-refresh even if immediate import fails
+        try {
+          const saveRes = await dataService.requestApi('/save-sheets-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              spreadsheetId: (config as any).spreadsheetId,
+              apiKey: (config as any).apiKey,
+              ranges: config.ranges,
+              autoRefresh: !!(config as any).autoRefresh,
+              refreshIntervalMinutes: Number((config as any).refreshIntervalMinutes) || 60,
+            }),
+          });
+          if (saveRes && saveRes.ok) {
+            // refresh saved configs state so UI hides import field
+            // refresh configs metadata (not used in UI)
+            try { await dataService.requestApi('/sheets-configs'); } catch (e) { /* ignore */ }
           }
+        } catch (e) {
+          console.warn('Saving sheets config failed before import', e);
         }
-      } catch (e) {
-        console.error('Failed to load saved sheet configs', e);
       }
-    })();
-  }, []);
+
+      dataService.setGoogleSheetsConfig(config);
+      const serverRes = await dataService.importFromGoogleSheets();
+      if (serverRes && (serverRes.recruiters.length || serverRes.candidates.length || serverRes.clients.length || serverRes.performance.length)) {
+        setRecruiters(serverRes.recruiters);
+        setPerformanceDataState(serverRes.performance);
+        const dataImported = dataService.hasImportedData();
+        setHasData(dataImported);
+        setHasImportedData(dataImported);
+        setSelectedRecruiter('all');
+        
+        setIsImporting(false);
+        return;
+      }
+    } catch (err: any) {
+      console.warn('Server import failed, will attempt published CSV fallback if appropriate', err?.message || err);
+      // if server error indicates Google Sheets access not configured, try published CSV fallback
+      const msg = err && err.message ? String(err.message).toLowerCase() : '';
+      if (!msg.includes('google sheets access not configured') && !msg.includes('network request failed')) {
+        // If server failed for other reasons, rethrow to show error to user later
+        console.error('Server import failed with unexpected error:', err);
+      }
+    }
+
+    // If server import didn't yield data or failed due to access, try published CSV client-side
+    try {
+      if (spreadsheetId) {
+        await handleImportPublished(spreadsheetId, gid);
+        
+        return;
+      }
+    } catch (fallbackErr) {
+      console.error('Client-side published import failed:', fallbackErr);
+      const msg = (fallbackErr && (fallbackErr as any).message) || String(fallbackErr) || 'Import failed';
+      alert(`Import failed: ${msg}. You can try publishing the sheet to the web and ensure headers are named (e.g., Name, Email, Hired).`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
 
   const handleImportPublished = async (spreadsheetId: string, gid?: string, singleSheet?: boolean) => {
     setIsImporting(true);
@@ -247,7 +308,8 @@ export default function DashboardPage() {
         res = await dataService.importFromPublishedSheets(spreadsheetId, gid);
       }
       if (!res || (!res.recruiters.length && !res.performance.length && !res.clients.length && !res.candidates.length)) {
-        alert('No data found in the expected sheets. Ensure the sheet contains tabs named Recruiters, Candidates, Clients, or Performance, or publish the sheet to the web. If your sheet only has a single table, enable the "single-sheet import" option.');
+        // alert('No data found in the expected sheets. Ensure the sheet contains tabs named Recruiters, Candidates, Clients, or Performance, or publish the sheet to the web. If your sheet only has a single table, enable the "single-sheet import" option.');
+          alert(res.error);
         return;
       }
       setRecruiters(res.recruiters);
@@ -353,24 +415,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <ConnectSheetsBar onConnect={handleImport} />
-            <Button className="bg-slate-700 hover:bg-slate-600" onClick={async () => {
-              setIsImporting(true);
-              try {
-                const res = await fetch('/api/load-sample', { method: 'POST' });
-                if (!res || !res.ok) throw new Error('Sample load failed');
-                await fetchData();
-                alert('Sample data loaded');
-              } catch (err) {
-                console.error('Load sample failed', err);
-                alert('Failed to load sample data');
-              } finally {
-                setIsImporting(false);
-              }
-            }}>
-              <Download className="w-4 h-4 mr-2" />
-              Load sample data
-            </Button>
+            
           </div>
         </div>
 
@@ -384,7 +429,7 @@ export default function DashboardPage() {
               Connect your Google Sheets to import recruitment data and start
               tracking performance.
             </p>
-            <ConnectSheetsBar onConnect={handleImport} />
+            
           </CardContent>
         </Card>
       </div>
@@ -404,6 +449,44 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Month & Year selectors */}
+          <Select value={selectedMonth || ""} onValueChange={(v) => setSelectedMonth(v || undefined)}>
+            <SelectTrigger className="w-40 bg-slate-800 border-slate-600 text-white">
+              <SelectValue placeholder="Month (YYYY-MM)" />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectItem value="">All Months</SelectItem>
+              {/* Provide last 24 months options */}
+              {Array.from({ length: 24 }).map((_, i) => {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                const val = d.toISOString().slice(0,7);
+                return (
+                  <SelectItem key={val} value={val}>
+                    {val}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedYear || ""} onValueChange={(v) => setSelectedYear(v || undefined)}>
+            <SelectTrigger className="w-28 bg-slate-800 border-slate-600 text-white">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectItem value="">All Years</SelectItem>
+              {Array.from({ length: 6 }).map((_, i) => {
+                const y = new Date().getFullYear() - i;
+                return (
+                  <SelectItem key={String(y)} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
           {/* Recruiter Selection Dropdown */}
           <Select
             value={selectedRecruiter}
@@ -414,8 +497,8 @@ export default function DashboardPage() {
             </SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700">
               <SelectItem value="all">All Recruiters</SelectItem>
-              {recruiters.map((recruiter) => (
-                <SelectItem key={recruiter.id} value={recruiter.name}>
+              {recruiters.map((recruiter, index) => (
+                <SelectItem key={`${recruiter.id ?? recruiter.email ?? recruiter.name ?? index}`} value={recruiter.name}>
                   {recruiter.name} - {recruiter.location}
                 </SelectItem>
               ))}
@@ -434,8 +517,7 @@ export default function DashboardPage() {
             Fetch Data
           </Button>
 
-          <ConnectSheetsBar onConnect={handleImport} />
-
+          
           <Button
             variant="outline"
             className="border-slate-600 text-slate-300 hover:bg-slate-800"
@@ -640,9 +722,9 @@ export default function DashboardPage() {
               </PieChart>
             </ResponsiveContainer>
             <div className="flex flex-col space-y-2 mt-4">
-              {pieData.map((item) => (
+              {pieData.map((item, index) => (
                 <div
-                  key={item.name}
+                  key={`${item.name || 'slice'}-${index}`}
                   className="flex items-center justify-between"
                 >
                   <div className="flex items-center">
@@ -674,7 +756,7 @@ export default function DashboardPage() {
               {topPerformers.length > 0 ? (
                 topPerformers.map((performer, index) => (
                   <div
-                    key={performer.name}
+                    key={`${performer.name || 'performer'}-${index}`}
                     className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg"
                   >
                     <div className="flex items-center space-x-3">
@@ -720,9 +802,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentActivity.map((activity) => (
+              {recentActivity.map((activity, index) => (
                 <div
-                  key={activity.id}
+                  key={activity.id ?? `activity-${index}`}
                   className="flex items-start space-x-3 p-3 bg-slate-700/30 rounded-lg"
                 >
                   <div className="w-2 h-2 bg-emerald-400 rounded-full mt-2"></div>
