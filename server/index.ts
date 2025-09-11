@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
+import { handleUpdates } from './routes/updates';
 import { handleImportSheets, handleFetchData, handleSaveConfig, handleGetConfigs } from './routes/sheets';
 import { handleClearData } from './routes/maintenance';
 
@@ -20,6 +21,9 @@ export function createServer() {
   });
 
   app.get("/api/demo", handleDemo);
+
+  // SSE updates stream
+  app.get('/api/updates', handleUpdates);
 
   // Import and fetch Google Sheets data (persisted in MongoDB)
   app.post('/api/import-sheets', handleImportSheets);

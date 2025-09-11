@@ -93,8 +93,15 @@ function ConnectSheetsBar({ onConnect }: { onConnect: (config: any) => void }) {
       // silently save config server-side and enable server auto-refresh by default
       saveConfig: true,
       autoRefresh: true,
-      refreshIntervalMinutes: 60,
+      // default to safe 30s (0.5 minutes)
+      refreshIntervalMinutes: 0.5,
     };
+
+    // If user chose an aggressive refresh interval (<15s), confirm they want to proceed
+    if ((cfg.refreshIntervalMinutes || 0) < 0.25) {
+      const proceed = window.confirm('You have chosen a refresh interval below 15 seconds. This may hit Google Sheets API quotas or increase server load. Do you want to continue? Click OK to proceed with the chosen interval, or Cancel to use a safer 30s interval.');
+      if (!proceed) cfg.refreshIntervalMinutes = 0.5;
+    }
 
     onConnect(cfg);
     setSheetLink("");
@@ -156,11 +163,54 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // SSE: listen for server updates and refresh UI automatically
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('EventSource' in window)) return;
+
+    let es: EventSource | null = null;
+    const fetchLatest = async () => {
+      try {
+        const recs = await dataService.fetchRecruiters();
+        const perf = await dataService.fetchPerformanceData();
+        setRecruiters(recs);
+        setPerformanceDataState(perf);
+        const dataImported = dataService.hasImportedData();
+        setHasData(dataImported);
+        setHasImportedData(dataImported);
+      } catch (e) {
+        console.warn('Failed to fetch latest data after SSE event', e);
+      }
+    };
+
+    try {
+      es = new EventSource('/api/updates');
+      es.addEventListener('sheets-imported', (e: MessageEvent) => {
+        try {
+          const payload = JSON.parse(e.data);
+          console.info('sheets-imported', payload);
+        } catch (err) {
+          // ignore parse errors
+        }
+        fetchLatest();
+      });
+      es.onerror = (err) => {
+        // Keep connection open; errors will be retried by browser
+        console.warn('SSE connection error', err);
+      };
+    } catch (e) {
+      console.warn('Could not open SSE connection', e);
+    }
+
+    return () => {
+      try { es && es.close(); } catch (e) {}
+    };
+  }, []);
+
 
   const fetchData = async () => {
     setIsRefreshing(true);
     try {
-      const filters: any = {};
+      const filters: any = {};                                               
       if (selectedMonth) filters.month = selectedMonth;
       if (selectedYear) filters.year = selectedYear;
       if (selectedRecruiter) filters.recruiter = selectedRecruiter;
@@ -415,7 +465,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            
+            <ConnectSheetsBar onConnect={handleImport} />
           </div>
         </div>
 

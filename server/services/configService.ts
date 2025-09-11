@@ -5,6 +5,9 @@ import { SheetsConfig } from '../models';
 type ConfigDoc = any;
 
 const intervals: Map<string, NodeJS.Timeout> = new Map();
+// rate limit history: timestamps of recent runs per spreadsheet
+const runHistory: Map<string, number[]> = new Map();
+const MAX_IMPORTS_PER_MINUTE = 20; // safety cap to protect API quota
 
 export async function saveSheetsConfig(config: ConfigDoc) {
   // upsert by spreadsheetId
@@ -15,7 +18,8 @@ export async function saveSheetsConfig(config: ConfigDoc) {
       apiKey: config.apiKey,
       ranges: config.ranges,
       autoRefresh: !!config.autoRefresh,
-      refreshIntervalMinutes: config.refreshIntervalMinutes || 60,
+      // preserve explicit numeric values (including sub-minute values)
+      refreshIntervalMinutes: typeof config.refreshIntervalMinutes === 'number' ? config.refreshIntervalMinutes : 60,
     },
     { upsert: true, new: true }
   ).exec();
@@ -38,11 +42,24 @@ function startJobForConfig(doc: any) {
   const key = doc.spreadsheetId;
   stopJobForConfig(key);
 
-  const minutes = doc.refreshIntervalMinutes || 60;
-  const ms = Math.max(1, minutes) * 60 * 1000;
+  const minutes = typeof doc.refreshIntervalMinutes === 'number' ? doc.refreshIntervalMinutes : 60;
+  // Allow sub-minute intervals (minimum 0.05 minutes = 3s)
+  const ms = Math.max(0.05, minutes) * 60 * 1000;
 
   const run = async () => {
     try {
+      // Rate limiting: track runs in the last 60s
+      const now = Date.now();
+      const windowStart = now - 60_000;
+      const hist = (runHistory.get(key) || []).filter((t) => t >= windowStart);
+      if (hist.length >= MAX_IMPORTS_PER_MINUTE) {
+        console.warn(`Rate limit hit for ${key}: ${hist.length} imports in last minute; skipping this run.`);
+        runHistory.set(key, hist);
+        return;
+      }
+      hist.push(now);
+      runHistory.set(key, hist);
+
       // call import & save
       await importSheetsAndSave({
         spreadsheetId: doc.spreadsheetId,
@@ -68,6 +85,8 @@ function stopJobForConfig(spreadsheetId: string) {
     clearInterval(t);
     intervals.delete(spreadsheetId);
   }
+  // clear history as well
+  runHistory.delete(spreadsheetId);
 }
 
 export async function startScheduledJobs() {
@@ -79,4 +98,5 @@ export async function startScheduledJobs() {
 export function stopAllJobs() {
   intervals.forEach((t) => clearInterval(t));
   intervals.clear();
+  runHistory.clear();
 }

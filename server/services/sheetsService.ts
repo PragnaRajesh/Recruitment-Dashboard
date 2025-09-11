@@ -68,20 +68,21 @@ function parseRecruiters(response: any) {
     const byName: Record<string, string> = {};
     header.forEach((h, i) => (byName[h] = row[i] !== undefined ? String(row[i]) : ''));
     return {
-      name: byName['name'] || byName['full name'] || byName['recruiter'] || (row[0] || ''),
-      email: byName['email'] || byName['email id'] || (row[1] || ''),
-      phone: byName['phone'] || byName['contact number'] || (row[2] || ''),
-      department: byName['department'] || (row[3] || ''),
-      territory: byName['territory'] || byName['locations'] || (row[4] || ''),
-      hired: parseNum(byName['hired'] || byName['total hired'] || byName['hires'] || String(row[5] || '0')),
-      joinDate: byName['joindate'] || byName['join date'] || byName['start date'] || byName['doj'] || (row[6] || ''),
+      // Prefer header mapping; fall back to second column for name (col 2), first col is SL No
+      name: byName['name'] || byName['full name'] || byName['recruiter'] || (row[1] || ''),
+      email: byName['email'] || byName['email id'] || (row[2] || ''),
+      phone: byName['phone'] || byName['contact number'] || (row[3] || ''),
+      department: byName['department'] || (row[4] || ''),
+      territory: byName['territory'] || byName['locations'] || (row[5] || ''),
+      hired: parseNum(byName['hired'] || byName['total hired'] || byName['hires'] || String(row[6] || '0')),
+      joinDate: byName['joindate'] || byName['join date'] || byName['start date'] || byName['doj'] || (row[7] || ''),
       reportingManager: byName['reporting manager'] || byName['reportingmanager'] || '',
       remarks: byName['remarks'] || '',
       backendCallingsRemarks: byName['backend callings remarks'] || byName['backendcallingsremarks'] || '',
       recruiterBackendCallings: byName['recruiter backend callings'] || byName['recruiterbackendcallings'] || '',
-      status: (byName['status'] as any) || ((row[7] as any) || 'active'),
-      trend: (byName['trend'] as any) || ((row[8] as any) || 'up'),
-      location: byName['location'] || (row[9] || ''),
+      status: (byName['status'] as any) || ((row[8] as any) || 'active'),
+      trend: (byName['trend'] as any) || ((row[9] as any) || 'up'),
+      location: byName['location'] || (row[10] || ''),
     };
   });
 }
@@ -96,21 +97,22 @@ function parseCandidates(response: any) {
     header.forEach((h, i) => (byName[h] = row[i] !== undefined ? String(row[i]) : ''));
     const skills = (byName['skills'] || String(row[5] || '')).split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
     return {
-      name: byName['name'] || (row[0] || ''),
-      email: byName['email'] || byName['email id'] || (row[1] || ''),
-      phone: byName['phone'] || byName['contact number'] || (row[2] || ''),
-      position: byName['position'] || byName['role'] || (row[3] || ''),
-      experience: byName['experience'] || (row[4] || ''),
+      // treat first column as SL no (ignore), second column as candidate name
+      name: byName['name'] || (row[1] || ''),
+      email: byName['email'] || byName['email id'] || (row[2] || ''),
+      phone: byName['phone'] || byName['contact number'] || (row[3] || ''),
+      position: byName['position'] || byName['role'] || (row[4] || ''),
+      experience: byName['experience'] || (row[5] || ''),
       skills,
-      status: (byName['status'] as any) || ((row[6] as any) || 'pending'),
-      salary: parseNum(byName['salary'] || byName['salary details'] || String(row[7] || '0')),
-      recruiter: byName['recruiter'] || (row[8] || ''),
+      status: (byName['status'] as any) || ((row[7] as any) || 'pending'),
+      salary: parseNum(byName['salary'] || byName['salary details'] || String(row[8] || '0')),
+      recruiter: byName['recruiter'] || (row[9] || ''),
       reportingManager: byName['reporting manager'] || '',
-      client: byName['client'] || (row[9] || ''),
-      appliedDate: byName['applieddate'] || byName['applied date'] || byName['doj'] || (row[10] || ''),
+      client: byName['client'] || (row[10] || ''),
+      appliedDate: byName['applieddate'] || byName['applied date'] || byName['doj'] || (row[11] || ''),
       doj: byName['doj'] || '',
       salaryDetails: byName['salary details'] || '',
-      location: byName['location'] || (row[11] || ''),
+      location: byName['location'] || (row[12] || ''),
       remarks: byName['remarks'] || '',
       backendCallingsRemarks: byName['backend callings remarks'] || '',
     };
@@ -231,6 +233,36 @@ export async function importSheetsAndSave(config: GoogleSheetsConfig) {
     performance = perfRes ? parsePerformance(perfRes) : [];
   }
 
+  // If recruiters sheet was not provided but candidates contain recruiter info, build recruiters list
+  if ((!recruiters || recruiters.length === 0) && candidates && candidates.length) {
+    const map: Record<string, any> = {};
+    candidates.forEach((c: any) => {
+      const rname = (c.recruiter || '').trim();
+      if (!rname) return;
+      if (!map[rname]) {
+        map[rname] = {
+          name: rname,
+          email: '',
+          phone: '',
+          department: '',
+          territory: '',
+          hired: 0,
+          joinDate: '',
+          reportingManager: c.reportingManager || '',
+          remarks: c.remarks || '',
+          backendCallingsRemarks: c.backendCallingsRemarks || '',
+          recruiterBackendCallings: c.recruiterBackendCallings || '',
+          status: 'active',
+          trend: 'up',
+          location: '',
+        };
+      }
+      // increment hired count if candidate marked hired
+      if (String(c.status || '').toLowerCase() === 'hired') map[rname].hired++;
+    });
+    recruiters = Object.keys(map).map((k) => map[k]);
+  }
+
   // Best-effort DB persistence; return data even if DB is unavailable
   try {
     await Recruiter.deleteMany({});
@@ -242,6 +274,25 @@ export async function importSheetsAndSave(config: GoogleSheetsConfig) {
     if (candidates.length) await Candidate.insertMany(candidates.map((c: any) => ({ ...c })));
     if (clients.length) await Client.insertMany(clients.map((c: any) => ({ ...c })));
     if (performance.length) await Performance.insertMany(performance.map((p: any) => ({ ...p })));
+
+    // Broadcast update to connected clients (SSE)
+    try {
+      // Import lazily to avoid circular deps during startup
+      const updates = await import('./updatesService');
+      const counts = {
+        recruiters: (recruiters || []).length,
+        candidates: (candidates || []).length,
+        clients: (clients || []).length,
+        performance: (performance || []).length,
+      };
+      try {
+        updates.broadcast('sheets-imported', { spreadsheetId, counts, timestamp: new Date().toISOString() });
+      } catch (e) {
+        console.warn('Broadcast failed', e);
+      }
+    } catch (e) {
+      // ignore
+    }
   } catch (e) {
     console.warn('DB write failed, returning data without persisting', (e as any)?.message ?? e);
   }
